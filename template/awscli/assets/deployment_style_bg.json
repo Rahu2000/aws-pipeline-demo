@@ -1,0 +1,4 @@
+{
+  "deploymentType": "BLUE_GREEN",
+  "deploymentOption": "WITH_TRAFFIC_CONTROL"
+}

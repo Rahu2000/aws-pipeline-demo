@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "events": [
+    "DEPLOYMENT_FAILURE",
+    "DEPLOYMENT_STOP_ON_ALARM",
+    "DEPLOYMENT_STOP_ON_REQUEST"
+  ]
+}

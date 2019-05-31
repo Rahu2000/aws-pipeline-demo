@@ -1,0 +1,11 @@
+#!/bin/bash
+yum -y update
+yum install -y ruby
+cd /home/ec2-user
+curl -O https://aws-codedeploy-us-east-2.s3.amazonaws.com/latest/install
+chmod +x ./install
+./install auto
+
+# install JAVA 1.8 
+JAVA_VER=$(java -version 2>&1 | sed 's/.*version "\(.*\)\.\(.*\)\..*"/\1\2/; 1q')
+[ "$JAVA_VER" -ge 18 ] && echo "java is 1.8 or newer" || sudo yum -y install java-1.8.0-openjdk

@@ -1,0 +1,4 @@
+{
+  "deploymentType": "IN_PLACE",
+  "deploymentOption": "WITHOUT_TRAFFIC_CONTROL"
+}
