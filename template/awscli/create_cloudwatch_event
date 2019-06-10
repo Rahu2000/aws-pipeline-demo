@@ -1,0 +1,150 @@
+#!/bin/bash
+##############################################
+# Set value
+##############################################
+unset CODEPIPELINE_NAME
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    CODEPIPELINE_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -r|--repository-name)
+    REPO_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -b|--branch)
+    BRANCH="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -t|--type)
+    REPO_TYPE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+# Check mandatory field
+# CodePipeline name
+if [ -z $CODEPIPELINE_NAME ]; then
+    echo 'CodePipeline name is required'
+    exit 9
+fi
+
+# Repository name
+if [ -z $REPO_NAME ]; then
+    echo 'Repository name is required'
+    exit 9
+fi
+
+# Branch
+if [ -z $BRANCH ]; then
+    echo 'Branch is required'
+    exit 9
+fi
+
+# Source type
+if [ -z $REPO_TYPE ]; then
+    echo 'Repository type is required'
+    exit 9
+fi
+
+REGION="$(aws configure get region)"
+CWE_EVENT_POLICY_NAME="Start-pipeline-execution"-"$REGION"-"$CODEPIPELINE_NAME"
+CWE_EVENT_ROLE_NAME="CloudWatchEventRole"-"$REGION"-"$CODEPIPELINE_NAME"
+
+# get codepipeline Arn
+CODEPIPELINE_ARN="$(aws codepipeline get-pipeline --name $CODEPIPELINE_NAME 2> /dev/null | jq -r '.metadata.pipelineArn')"
+if [ -z $CODEPIPELINE_ARN ]; then
+    echo '$CODEPIPELINE_NAME is not exist'
+    exit 9
+fi
+REPLACE_STR='\/'
+CODEPIPELINE_ARN="${CODEPIPELINE_ARN//\//$REPLACE_STR}"
+
+##############################################
+# Create a CloudWatchEvent Role for the pipeline
+##############################################
+CWE_CONFIG_FILE="CloudWatchEventPolicyforCodePipeline-$REGION-$CODEPIPELINE_NAME".json
+CWS_EVENT_ROLE_ARN="$(aws iam get-role --role-name $CWE_EVENT_ROLE_NAME 2> /dev/null | jq -c '.Role.Arn')"
+
+if [ -z $CWS_EVENT_ROLE_ARN ]; then
+    # create cloudwatch role for codepipeline
+    CWS_EVENT_ROLE_ARN="$(aws iam create-role --role-name $CWE_EVENT_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForEvents.json | jq -r '.Role.Arn')"
+    sleep 1
+fi
+
+if [ -z $CWS_EVENT_ROLE_ARN ]; then
+    echo 'Creating cloudwatch event role failed'
+    exit 9
+fi
+
+# search exist cache policy for codebuild
+CWS_EVENT_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c --arg policyname $CWE_EVENT_POLICY_NAME '.Policies[] | select(.PolicyName == $policyname)' | jq -r '.Arn')"
+    
+if [ -z $CWS_EVENT_POLICY_ARN ]; then
+    # Generate CloudWatchEvent Policy file 
+    cat policies/CloudWatchEventPolicyforCodePipeline.json \
+    | sed "s/CODEPIPELINE_ARN/$CODEPIPELINE_ARN/g" \
+    > .config/$CWE_CONFIG_FILE
+    
+    # create codedeploy cache policy
+    CWS_EVENT_POLICY_ARN="$(aws iam create-policy --policy-name $CWE_EVENT_POLICY_NAME --path /service-role/ --policy-document file://.config/$CWE_CONFIG_FILE | jq -r '.Policy.Arn')"
+    sleep 1
+
+    # attach base policy to codebuild role
+    aws iam attach-role-policy --policy-arn $CWS_EVENT_POLICY_ARN --role-name $CWE_EVENT_ROLE_NAME
+    sleep 1
+fi
+
+##############################################
+# Put a CloudWatchEventRule to the CodePipeline Arn
+##############################################
+CLOUDWATCH_EVENT_ROLE_NAME="CodepipelineEventRule-$REPO_NAME-$BRANCH-$( shuf -i 100000-999999 -n 1)"
+CLOUDWATCH_EVENT_ROLE_TARGET="$CLOUDWATCH_EVENT_ROLE_NAME-Target"
+
+if [ 'CODECOMMIT' == $REPO_TYPE ]; then
+    # Create event rule
+    CODECOMMIT_REPO_ARN="$(aws codecommit get-repository --repository-name $REPO_NAME 2> /dev/null | jq -r '.repositoryMetadata.Arn')"
+    CODECOMMIT_REPO_ARN="${CODECOMMIT_REPO_ARN//\//$REPLACE_STR}"
+
+    if [ -z $CODECOMMIT_REPO_ARN ]; then
+        echo 'Repository $REPO_NAME is not exist'
+        exit 9
+    fi
+
+    # Generate a CloudWatchEventPattern template file
+    cat stubs/codecommit_cloudwatch_event_pattern.json \
+    | sed "s/CODECOMMIT_REPO_ARN/$CODECOMMIT_REPO_ARN/g" \
+    | sed "s/BRANCH/$BRANCH/g" \
+    > .config/$CLOUDWATCH_EVENT_ROLE_NAME.json
+    
+    aws events put-rule --name $CLOUDWATCH_EVENT_ROLE_NAME --event-pattern file://.config/$CLOUDWATCH_EVENT_ROLE_NAME.json
+    sleep 1
+
+    # Put rule to target
+    CWS_EVENT_ROLE_ARN="${CWS_EVENT_ROLE_ARN//\//$REPLACE_STR}"
+    
+    # Generate target information file for cloudwatch event rule
+    cat stubs/default_cloudwatch_events_rules.json \
+    | sed "s/CODEPIPELINE_ARN/$CODEPIPELINE_ARN/g" \
+    | sed "s/CWS_EVENT_ROLE_ARN/$CWS_EVENT_ROLE_ARN/g" \
+    > .config/$CLOUDWATCH_EVENT_ROLE_TARGET.json
+    
+    aws events put-targets --rule $CLOUDWATCH_EVENT_ROLE_NAME --targets file://.config/$CLOUDWATCH_EVENT_ROLE_TARGET.json
+fi
+
+exit 0

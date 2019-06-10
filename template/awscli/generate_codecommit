@@ -1,0 +1,72 @@
+#!/bin/bash
+unset REPO_NAME
+unset REPO_DESCRIPTION
+unset TARGET_GIT_URL
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    REPO_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -d|--description)
+    REPO_DESCRIPTION="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -t|--target)
+    TARGET_GIT_URL="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+if [ -z "$REPO_NAME" ]; then
+    echo 'Repository name is empty'
+    exit 1
+fi
+
+if [ -z "$REPO_DESCRIPTION" ]; then
+    REPO_DESCRIPTION=$REPO_NAME
+fi
+
+if [ -z "$TARGET_GIT_URL" ]; then
+    TARGET_GIT_URL='https://github.com/Rahu2000/spring-boot-demo.git'
+fi
+
+echo 'Codecommit creation started...'
+
+REPO_ARN="$(aws codecommit get-repository --repository-name $REPO_NAME 2> /dev/null | jq -r '.repositoryMetadata.Arn')"
+if [ -n "$REPO_ARN" ]; then
+    echo 'Repository $REPO_NAME is already exist.'
+    exit 0
+fi
+
+# Generate AWS CodeCommit Repository
+REPO_URL="$(aws codecommit create-repository --repository-name $REPO_NAME --repository-description "$REPO_DESCRIPTION" | jq .repositoryMetadata.cloneUrlHttp | tr -d \")"
+if [ -z $REPO_URL ]; then
+    echo 'Repository creation failed'
+    exit 9
+fi
+
+# Initialize the repository from the target git
+if [ -n "$TARGET_GIT_URL" ]; then
+    # Initial Repository
+    git clone --mirror $TARGET_GIT_URL temp-$REPO_NAME
+    cd temp-$REPO_NAME
+    git push $REPO_URL --all
+    cd ..
+    rm -rf temp-$REPO_NAME
+fi
+
+exit 0

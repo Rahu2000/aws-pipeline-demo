@@ -7,7 +7,7 @@
       "Effect": "Deny",
       "Principal": "*",
       "Action": "s3:PutObject",
-      "Resource": "arn:aws:s3:::S3-BUCKET-NAME/*",
+      "Resource": "arn:aws:s3:::S3-BUCKET/*",
       "Condition": {
         "StringNotEquals": {
           "s3:x-amz-server-side-encryption": "aws:kms"
@@ -19,7 +19,7 @@
       "Effect": "Deny",
       "Principal": "*",
       "Action": "s3:*",
-      "Resource": "arn:aws:s3:::S3-BUCKET-NAME/*",
+      "Resource": "arn:aws:s3:::S3-BUCKET/*",
       "Condition": {
         "Bool": {
           "aws:SecureTransport": "false"

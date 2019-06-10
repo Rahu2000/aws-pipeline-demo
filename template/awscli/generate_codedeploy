@@ -1,0 +1,109 @@
+#!/bin/bash
+##############################################
+# Set value
+##############################################
+unset APP_NAME
+unset DEPLOYMENT_NAME
+unset PLATFORM
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    APP_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -p|--platform)
+    PLATFORM="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -d|--deployment-name)
+    DEPLOYMENT_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+# Check mandatory field
+if [ -z "$APP_NAME" ]; then
+    echo 'Application name is required'
+    exit 1
+fi
+
+# Set default platform
+if [ -z $PLATFORM ]; then
+    PLATFORM="Server"
+fi
+
+# Set default deployment name
+if [ -z $DEPLOYMENT_NAME ]; then
+    DEPLOYMENT_NAME=$APP_NAME-deploy-group
+fi
+
+# Validate platform
+if [[ ! $PLATFORM =~ ^(Server|Lambda|ECS)$ ]]; then
+    echo "Platform $PLATFORM is not supported"
+    echo "Supported platforms are 'Server|Lambda|ECS'"
+    exit 9
+fi
+
+echo 'Codedeploy creation started...'
+
+##############################################
+# create codedeploy service role
+##############################################
+# Set default codedeploy service role name
+CODEDEPLOY_SERVICE_ROLE='CodeDeployServiceRole'
+./create_codedeploy_service_role $CODEDEPLOY_SERVICE_ROLE
+if [ 0 -ne $? ]; then
+    echo "Creating 'codedeploy service role' failed."
+    exit 9
+fi
+# Set codedeploy service role arn
+CODEDEPLOY_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEDEPLOY_SERVICE_ROLE 2> /dev/null | jq -r '.Role.Arn')"
+
+##############################################
+# create application
+##############################################
+# Get ApplicationId
+CODEDEPLOY_APP_ID="$(aws deploy get-application --application-name $APP_NAME 2> /dev/null | jq -r '.application.applicationId')"
+
+# create application
+if [ -z $CODEDEPLOY_APP_ID ]; then
+    CODEDEPLOY_APP_ID="$(aws deploy create-application --application-name $APP_NAME --compute-platform $PLATFORM | jq -r '.applicationId')"
+    sleep 1
+fi
+
+##############################################
+# create application deployment group
+##############################################
+# EC2 Type deployment
+if [ "Server" == "$PLATFORM" ]; then
+    DEPLOYMENT_GROUP_FLAG="$(aws deploy list-deployment-groups --application-name $APP_NAME | jq -c --arg deploymentGroup $DEPLOYMENT_NAME '.deploymentGroups[] | contains ($deploymentGroup)')"
+    if [ "$DEPLOYMENT_GROUP_FLAG" == true ]; then
+        continue
+    else
+        aws deploy create-deployment-group \
+            --application-name $APP_NAME \
+            --deployment-config-name CodeDeployDefault.OneAtATime \
+            --deployment-group-name $DEPLOYMENT_NAME \
+            --ec2-tag-filters Key=Name,Value=$APP_NAME,Type=KEY_AND_VALUE \
+            --service-role-arn $CODEDEPLOY_SERVICE_ROLE_ARN \
+            --auto-rollback-configuration file://stubs/auto_rollback_enable.json \
+            --deployment-style file://stubs/deployment_style.json
+            #--auto-scaling-groups $AUTO_SCALING_GROUPS \
+            #--load-balancer-info $LOAD_BALANCER_INFO
+    fi
+fi
+
+exit 0

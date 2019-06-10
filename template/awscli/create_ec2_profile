@@ -1,0 +1,31 @@
+#!/bin/bash
+if [ -z "$1" ]; then
+    echo 'Role name is required'
+    exit 1
+fi
+
+HAS_PROFILE="$(aws iam get-instance-profile --instance-profile-name $1 2> /dev/null | jq -r '.InstanceProfile.InstanceProfileName')"
+if [ -n "$HAS_PROFILE" ]; then
+    # Profile is exist
+    echo $1 is already exist
+    exit 0
+fi
+
+echo 'create EC2 instance profile...'
+ROLE_ARN="$(aws iam get-role --role-name $1 2> /dev/null)"
+if [ -z $ROLE_ARN ]; then
+    # create ec2 role for codedeploy
+    aws iam create-role --role-name $1 --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForEC2.json
+
+    # attach policy to codedeploy role
+    aws iam attach-role-policy --role-name $1 --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy 
+fi
+
+# Create the instance profile required by EC2 to contain the role
+aws iam create-instance-profile --instance-profile-name $1
+
+# Finally, add the role to the instance profile
+aws iam add-role-to-instance-profile --instance-profile-name $1 --role-name $1
+sleep 10
+
+exit 0

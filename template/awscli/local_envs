@@ -7,12 +7,12 @@ fi
 
 # OS type Check
 if [ "$OS_TYPE" == "Ubuntu" ]; then
-    ./ubuntu_env.sh
-    exit 0
+    ./setup_ubuntu
+    exit $?
 fi
 if [ "$OS_TYPE" == "CentOS" ]; then
-    ./centos_env.sh
-    exit 0
+    ./setup_centos
+    exit $?
 fi
 
 echo 'Not Support OS'

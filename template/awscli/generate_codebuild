@@ -1,0 +1,120 @@
+#!/bin/bash
+##############################################
+# Set value
+##############################################
+unset BUILD_NAME
+unset BUILD_DESCRIPTION
+unset S3_BUCKET
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    BUILD_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -d|--description)
+    BUILD_DESCRIPTION="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -s|--s3-bucket)
+    S3_BUCKET="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -t|--type)
+    SOURCE_TYPE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -b|--build-spec)
+    BUILDSPEC_FILE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+# Check mandatory field
+if [ -z "$BUILD_NAME" ]; then
+    echo 'Build name is required'
+    exit 1
+fi
+
+if [ -z "$S3_BUCKET" ]; then
+    echo 'S3 bucket name is required'
+    exit 1
+fi
+
+# Set default build description
+if [ -z "$BUILD_DESCRIPTION" ]; then
+    BUILD_DESCRIPTION=$BUILD_NAME
+fi
+
+# Set default source type
+if [ -z "$SOURCE_TYPE" ]; then
+    SOURCE_TYPE='CODEPIPELINE'
+fi
+
+# Set default build spec
+if [ -z "$BUILDSPEC_FILE" ]; then
+    BUILDSPEC_FILE='buildspec.yml'
+fi
+
+# Validate source type
+if [[ ! $SOURCE_TYPE =~ ^(CODECOMMIT|CODEPIPELINE|GITHUB|S3|BITBUCKET|GITHUB_ENTERPRISE|NO_SOURCE)$ ]]; then
+    echo "Source type $SOURCE_TYPE is not supported"
+    echo "Supported platforms are 'CODECOMMIT|CODEPIPELINE|GITHUB|S3|BITBUCKET|GITHUB_ENTERPRISE|NO_SOURCE'"
+    exit 1
+fi
+echo 'Codebuild creation started...'
+
+REPLACE_STR='\/'
+AWS_IMAGE="$(aws codebuild list-curated-environment-images | jq -c --arg platform "UBUNTU" '.platforms[] | select(.platform == $platform)' | jq -c --arg language "STANDARD" '.languages[] | select(.language == $language)' | jq -r '.images | sort_by(.name) | last(.[]).name')"
+BUILDER_IMAGE="${AWS_IMAGE//\//$REPLACE_STR}"
+
+# Get deploy service role arn
+./create_codebuild_service_role $BUILD_NAME $S3_BUCKET
+if [ 0 -ne $? ]; then
+    echo "Creating 'codebuild service role' failed."
+    exit 9
+fi
+
+REGION="$(aws configure get region)"
+
+# Set cache bucket (replaced)
+S3_CACHE_BUCKET="$S3_BUCKET\/caches"
+
+# replace strings
+BUILDSPEC_FILE="${BUILDSPEC_FILE//\//$REPLACE_STR}"
+CODEBUILD_SERVICE_ROLE="CodeBuildServiceRole-$REGION-$BUILD_NAME"
+CODEBUILD_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEBUILD_SERVICE_ROLE 2> /dev/null | jq -r '.Role.Arn')"
+CODEBUILD_SERVICE_ROLE_ARN="${CODEBUILD_SERVICE_ROLE_ARN//\//$REPLACE_STR}"
+
+##############################################
+# create application deployment group
+##############################################
+CODEBUILD_CONFIGURE_FILE=Codebuild-$REGION-$BUILD_NAME-"$(date '+%Y%m%d%H%M%S')".json
+if [ 'CODEPIPELINE' == "$SOURCE_TYPE" ]; then
+    cat stubs/default_codebuild_configure.json \
+    | sed "s/BUILD-NAME/$BUILD_NAME/g" \
+    | sed "s/BUILD-DESCRIPTION/$BUILD_DESCRIPTION/g" \
+    | sed "s/BUILDSPEC-FILE/$BUILDSPEC_FILE/g" \
+    | sed "s/S3-CACHE-BUCKET/$S3_CACHE_BUCKET/g" \
+    | sed "s/IMAGE/$BUILDER_IMAGE/g" \
+    | sed "s/SERVICE-ROLE/$CODEBUILD_SERVICE_ROLE_ARN/g" \
+    > .config/$CODEBUILD_CONFIGURE_FILE
+
+    aws codebuild create-project --cli-input-json file://.config/$CODEBUILD_CONFIGURE_FILE
+fi
+
+exit 0

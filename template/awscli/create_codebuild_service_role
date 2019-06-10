@@ -1,0 +1,75 @@
+#!/bin/bash
+if [ -z "$1" ]; then
+    echo 'Role name is required'
+    exit 1
+fi
+
+if [ -z "$2" ]; then
+    echo 'S3 bucket is required'
+    exit 1
+fi
+
+CODEBUILD_NAME="$1"
+S3_BUCKET="$2"
+
+REGION="$(aws configure get region)"
+ACCOUNT="$(aws sts get-caller-identity | jq -r '.Account')"
+BUILD_LOG_GROUP_ARN="arn:aws:logs:$REGION:$ACCOUNT:log-group:\/aws\/codebuild\/$CODEBUILD_NAME"
+# CWE_LOG_GROUP_ARN=""
+
+CODEBUILD_SERVICE_ROLE_NAME="CodeBuildServiceRole-$REGION-$CODEBUILD_NAME"
+CODEBUILD_SERVICE_BASE_POLICY_NAME="CodeBuildBasePolicy-$REGION-$CODEBUILD_NAME"
+CODEBUILD_SERVICE_CACHE_POLICY_NAME="CodeBuildCachePolicy-$REGION-$CODEBUILD_NAME"
+CODEBUILD_SERVICE_ROLE="$(aws iam get-role --role-name $CODEBUILD_SERVICE_ROLE_NAME 2> /dev/null | jq -r '.Role.RoleName')"
+
+if [ -z $CODEBUILD_SERVICE_ROLE ]; then
+    BASE_POLICY_FILE=$CODEBUILD_NAME-BasePolicy-"$(date '+%Y%m%d%H%M%S')".json
+    CACHE_POLICY_FILE=$CODEBUILD_NAME-CachePolicy-"$(date '+%Y%m%d%H%M%S')".json
+    # Create template for codebuild base policy
+    cat policies/CodeBuildBasePolicy.json \
+    | sed "s/LOG-GROUP-ARN/$BUILD_LOG_GROUP_ARN/g" \
+    | sed "s/S3-BUCKET/$S3_BUCKET/g" \
+    > .config/$BASE_POLICY_FILE
+
+    # Create template for codebuild cache policy
+    cat policies/CodeBuildCachePolicy.json \
+    | sed "s/S3-BUCKET/$S3_BUCKET/g" \
+    > .config/$CACHE_POLICY_FILE
+
+    # Create template for cloudwatch logs policy
+    #cat policies/CloudWatchLogsPolicyforCodebuild.json \
+    #| sed "s/LOG-GROUP-ARN/$LOG_GROUP_ARN/g" \
+    #> .config/$1-CloudWatchLogsPolicy.json
+
+    # create codedeploy role for codedeploy
+    aws iam create-role --role-name $CODEBUILD_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForCodeBuild.json
+    sleep 1
+
+    # search exist base policy for codebuild
+    CODEBUILD_SERVICE_BASE_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c --arg policyname $CODEBUILD_SERVICE_BASE_POLICY_NAME '.Policies[] | select(.PolicyName == $policyname)' | jq -r '.Arn')"
+    
+    if [ -z $CODEBUILD_SERVICE_BASE_POLICY_ARN ]; then
+        # create codedeploy base policy
+        CODEBUILD_SERVICE_BASE_POLICY_ARN="$(aws iam create-policy --policy-name $CODEBUILD_SERVICE_BASE_POLICY_NAME --path /service-role/ --policy-document file://.config/$BASE_POLICY_FILE | jq -r '.Policy.Arn')"
+        sleep 1
+    fi
+    
+    # search exist cache policy for codebuild
+    CODEBUILD_SERVICE_CACHE_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c --arg policyname $CODEBUILD_SERVICE_CACHE_POLICY_NAME '.Policies[] | select(.PolicyName == $policyname)' | jq -r '.Arn')"
+    
+    if [ -z $CODEBUILD_SERVICE_CACHE_POLICY_ARN ]; then
+        # create codedeploy cache policy
+        CODEBUILD_SERVICE_CACHE_POLICY_ARN="$(aws iam create-policy --policy-name $CODEBUILD_SERVICE_CACHE_POLICY_NAME --path /service-role/ --policy-document file://.config/$CACHE_POLICY_FILE | jq -r '.Policy.Arn')"
+        sleep 1
+    fi
+
+    # attach base policy to codebuild role
+    aws iam attach-role-policy --policy-arn $CODEBUILD_SERVICE_BASE_POLICY_ARN --role-name $CODEBUILD_SERVICE_ROLE_NAME
+    sleep 1
+    
+    # attach cache policy to codebuild role
+    aws iam attach-role-policy --policy-arn $CODEBUILD_SERVICE_CACHE_POLICY_ARN --role-name $CODEBUILD_SERVICE_ROLE_NAME
+    sleep 3
+fi
+
+exit 0

@@ -1,0 +1,37 @@
+{
+  "name": "BUILD-NAME",
+  "description": "BUILD-DESCRIPTION",
+  "source": {
+    "type": "CODEPIPELINE",
+    "buildspec": "BUILDSPEC-FILE",
+    "insecureSsl": false
+  },
+  "secondarySources": [],
+  "artifacts": {
+    "type": "CODEPIPELINE"
+  },
+  "secondaryArtifacts": [],
+  "cache": {
+    "type": "S3",
+    "location": "S3-CACHE-BUCKET"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "IMAGE",
+    "computeType": "BUILD_GENERAL1_MEDIUM",
+    "environmentVariables": [],
+    "privilegedMode": false,
+    "imagePullCredentialsType": "CODEBUILD"
+  },
+  "serviceRole": "SERVICE-ROLE",
+  "timeoutInMinutes": 60,
+  "queuedTimeoutInMinutes": 480,
+  "logsConfig": {
+    "cloudWatchLogs": {
+      "status": "ENABLED"
+    },
+    "s3Logs": {
+      "status": "DISABLED"
+    }
+  }
+}
