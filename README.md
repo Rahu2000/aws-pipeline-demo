@@ -1,14 +1,14 @@
 # aws-pipeline-demo
 Demo for pipeline automation on the AWS
 
-- - -
-## architecture
+
+### Architecture
 ![AWS CodePipeline Architecture](./docs/architecture.png "AWS CodePipeline Architecture")
 
-- - -
-## workflow
+
+### Workflow
 ![workflow](./docs/workflow.png "Workflow")
-- - -
+
 
 ## Usage
 ```
@@ -17,4 +17,3 @@ cd aws-pipeline-demo/template/awscli
 chmod +x *
 ./setup_pipeline.sh
 ```
-
