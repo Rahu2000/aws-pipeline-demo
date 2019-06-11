@@ -2,7 +2,7 @@
 Demo for pipeline automation on the AWS
 
 ## architecture
-
+![AWS CodePipeline Architecture](./docs/architecture.png "AWS CodePipeline Architecture")
 
 ## workflow
-![workflow](./docs/iworkflow.png "Optional title")
+![workflow](./docs/workflow.png "Workflow")
