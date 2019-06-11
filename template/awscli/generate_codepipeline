@@ -100,7 +100,7 @@ echo 'Codepipeline creation started...'
 # Create codepipeline service role
 ##############################################
 # Get Codepipeline service role
-CODEPIPELINE_SERVICE_ROLE_NAME='CodePipelineServiceRole'
+CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'
 ./create_codepipeline_service_role $CODEPIPELINE_SERVICE_ROLE_NAME
 if [ 0 -ne $? ]; then
     echo "Creating 'codepipeline service role' failed."

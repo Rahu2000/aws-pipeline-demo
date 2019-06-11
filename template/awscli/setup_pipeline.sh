@@ -10,7 +10,7 @@ CURL="$(curl --version 2> /dev/null | awk '{print $1}' | cut -d ' ' -f 1 | head 
 AWS_CLI="$(aws --version 2> /dev/null | awk '{print $1}' | cut -d '/' -f 1 )"
 JQ="$(jq --version 2> /dev/null | awk '{print $1}' | cut -d '-' -f 1)"
 
-if [ -z $GIT ] | [ -z $PYTHON ] | [ -z $PIP ] | [ -z $CURL ] | [ -z $AWS_CLI ] | [ -z $JQ ]; then
+if [ -z "$GIT" ] || [ -z "$PYTHON" ] || [ -z "$PIP" ] || [ -z "$CURL" ] || [ -z "$AWS_CLI" ] || [ -z "$JQ" ]; then
     # Required tools are not installed
     ./setup_local_envs
     if [ 0 -ne $? ]; then

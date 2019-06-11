@@ -1,4 +1,4 @@
-#!/bash/bin
+#!/bin/bash
 
 # OS type Check
 GIT="$(git --version 2> /dev/null | awk '{print $1}')"

@@ -81,7 +81,7 @@ WEB_SEC_GROUP_NAME='WebService'
 ###################################################
 # Check exist EC2 Server
 ###################################################
-EC2="$(aws ec2 describe-instances --query 'Reservations[*].Instances[*]' --filters Name=instance-state-name,Values=running,Name=tag-key,Values=Name,Name=tag-value,Values=$DEPLOY_GROUP_NAME)"
+EC2="$(aws ec2 describe-instances --query 'Reservations[*].Instances[*]' --filters "[{\"Name\":\"instance-state-name\",\"Values\":[\"running\",\"pending\"]},{\"Name\":\"tag-key\",\"Values\":[\"Name\"]},{\"Name\":\"tag-value\",\"Values\":[\"$DEPLOY_GROUP_NAME\"]}]" | jq -r '.[]')"
 
 if [ -n "$EC2" ]; then
     echo 'EC2 Server exist.'
