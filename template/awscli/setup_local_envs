@@ -1,10 +1,6 @@
 #!/bin/bash
 OS_TYPE="$(awk -F= '/^NAME/{print $2}' /etc/*-release | tr -d \")"
 
-if [ ! -d ".config" ]; then
-    mkdir .config
-fi
-
 # OS type Check
 if [ "$OS_TYPE" == "Ubuntu" ]; then
     ./setup_ubuntu

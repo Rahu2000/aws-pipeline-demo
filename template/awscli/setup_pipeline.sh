@@ -3,6 +3,10 @@
 #####################################################
 # Setup Local Environment
 #####################################################
+if [ ! -d ".config" ]; then
+    mkdir .config
+fi
+
 GIT="$(git --version 2> /dev/null | awk '{print $1}')"
 PYTHON="$(python3 --version 2> /dev/null | awk '{print $1}')"
 PIP="$(pip3 --version 2> /dev/null | awk '{print $1}')"
