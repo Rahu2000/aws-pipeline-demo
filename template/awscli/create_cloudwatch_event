@@ -97,7 +97,7 @@ CWS_EVENT_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c
     
 if [ -z $CWS_EVENT_POLICY_ARN ]; then
     # Generate CloudWatchEvent Policy file 
-    cat policies/CloudWatchEventPolicyforCodePipeline.json \
+    cat policies/CloudWatchEventsPolicyforCodePipeline.json \
     | sed "s/CODEPIPELINE_ARN/$CODEPIPELINE_ARN/g" \
     > .config/$CWE_CONFIG_FILE
     

@@ -10,7 +10,6 @@ CODEPIPELINE_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq
 if [ -z $CODEPIPELINE_POLICY_ARN ] ; then
     # create codepipeline service policy
     CODEPIPELINE_POLICY_ARN="$(aws iam create-policy --policy-name $CODEPIPELINE_POLICY_NAME --path /service-role/ --policy-document file://policies/CodePipelineServicePolicy.json | jq .Policy.Arn | tr -d \")"
-    sleep 1
 fi 
 
 CODEPIPELINE_SERVICE_ROLE="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME 2> /dev/null | jq -r '.Role.RoleName')"
@@ -18,11 +17,10 @@ CODEPIPELINE_SERVICE_ROLE="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_
 if [ -z $CODEPIPELINE_SERVICE_ROLE ] ; then
     # create codepipeline service role
     aws iam create-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForCodePipeline.json
-    sleep 1
 
     # attach policy to codepipeline role
     aws iam attach-role-policy --policy-arn $CODEPIPELINE_POLICY_ARN --role-name $CODEPIPELINE_SERVICE_ROLE_NAME
-    sleep 5
+    sleep 10
 fi
 
 exit 0
