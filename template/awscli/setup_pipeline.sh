@@ -12,7 +12,7 @@ JQ="$(jq --version 2> /dev/null | awk '{print $1}' | cut -d '-' -f 1)"
 
 if [ -z $GIT ] | [ -z $PYTHON ] | [ -z $PIP ] | [ -z $CURL ] | [ -z $AWS_CLI ] | [ -z $JQ ]; then
     # Required tools are not installed
-    ./local_env
+    ./setup_local_envs
     if [ 0 -ne $? ]; then
         echo 'Local environment setup is failed.'
         exit 9

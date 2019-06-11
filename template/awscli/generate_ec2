@@ -79,6 +79,16 @@ SSH_SEC_GROUP_NAME='SSHAccess'
 WEB_SEC_GROUP_NAME='WebService'
 
 ###################################################
+# Check exist EC2 Server
+###################################################
+EC2="$(aws ec2 describe-instances --query 'Reservations[*].Instances[*]' --filters Name=instance-state-name,Values=running,Name=tag-key,Values=Name,Name=tag-value,Values=$DEPLOY_GROUP_NAME)"
+
+if [ -n "$EC2" ]; then
+    echo 'EC2 Server exist.'
+    exit 0
+fi
+
+###################################################
 # Get VPC Info
 ###################################################
 VPC_ID="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" | jq -r '.Vpcs | last(.[]).VpcId')"
