@@ -6,7 +6,7 @@
     "CodeCommit Repository State Change"
   ],
   "resources":[
-    "CODECOMMIT_REPO_ARN"
+    "CODECOMMIT-REPO-ARN"
   ],
   "detail":{
     "event":[

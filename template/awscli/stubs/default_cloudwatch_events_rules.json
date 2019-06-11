@@ -1,7 +1,7 @@
 [
   {
     "Id":"1",
-    "Arn":"CODEPIPELINE_ARN",
-    "RoleArn":"CWS_EVENT_ROLE_ARN"
+    "Arn":"CODEPIPELINE-ARN",
+    "RoleArn":"CWS-EVENT-ROLE-ARN"
   }
 ]

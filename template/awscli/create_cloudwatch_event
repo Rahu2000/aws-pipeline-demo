@@ -98,7 +98,7 @@ CWS_EVENT_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c
 if [ -z $CWS_EVENT_POLICY_ARN ]; then
     # Generate CloudWatchEvent Policy file 
     cat policies/CloudWatchEventsPolicyforCodePipeline.json \
-    | sed "s/CODEPIPELINE_ARN/$CODEPIPELINE_ARN/g" \
+    | sed "s/CODEPIPELINE-ARN/$CODEPIPELINE_ARN/g" \
     > .config/$CWE_CONFIG_FILE
     
     # create codedeploy cache policy
@@ -128,7 +128,7 @@ if [ 'CODECOMMIT' == $REPO_TYPE ]; then
 
     # Generate a CloudWatchEventPattern template file
     cat stubs/codecommit_cloudwatch_event_pattern.json \
-    | sed "s/CODECOMMIT_REPO_ARN/$CODECOMMIT_REPO_ARN/g" \
+    | sed "s/CODECOMMIT-REPO-ARN/$CODECOMMIT_REPO_ARN/g" \
     | sed "s/BRANCH/$BRANCH/g" \
     > .config/$CLOUDWATCH_EVENT_ROLE_NAME.json
     
@@ -140,8 +140,8 @@ if [ 'CODECOMMIT' == $REPO_TYPE ]; then
     
     # Generate target information file for cloudwatch event rule
     cat stubs/default_cloudwatch_events_rules.json \
-    | sed "s/CODEPIPELINE_ARN/$CODEPIPELINE_ARN/g" \
-    | sed "s/CWS_EVENT_ROLE_ARN/$CWS_EVENT_ROLE_ARN/g" \
+    | sed "s/CODEPIPELINE-ARN/$CODEPIPELINE_ARN/g" \
+    | sed "s/CWS-EVENT-ROLE-ARN/$CWS_EVENT_ROLE_ARN/g" \
     > .config/$CLOUDWATCH_EVENT_ROLE_TARGET.json
     
     aws events put-targets --rule $CLOUDWATCH_EVENT_ROLE_NAME --targets file://.config/$CLOUDWATCH_EVENT_ROLE_TARGET.json
