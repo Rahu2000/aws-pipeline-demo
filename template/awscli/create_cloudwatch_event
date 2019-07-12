@@ -83,7 +83,7 @@ CWS_EVENT_ROLE_ARN="$(aws iam get-role --role-name $CWE_EVENT_ROLE_NAME 2> /dev/
 
 if [ -z $CWS_EVENT_ROLE_ARN ]; then
     # create cloudwatch role for codepipeline
-    CWS_EVENT_ROLE_ARN="$(aws iam create-role --role-name $CWE_EVENT_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForEvents.json | jq -r '.Role.Arn')"
+    CWS_EVENT_ROLE_ARN="$(aws iam create-role --role-name $CWE_EVENT_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforEvents.json | jq -r '.Role.Arn')"
     sleep 1
 fi
 

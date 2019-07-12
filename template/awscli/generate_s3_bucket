@@ -1,21 +1,82 @@
 #!/bin/bash
-S3_BUCKET="$1"
+
+##############################################
+# Set value
+##############################################
+unset ACCOUNT_ID
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    S3_BUCKET="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -t|--bucket_type)
+    DEPLOY_TYPE="$2" # 1: normal, 3: cross account deploy
+    shift # past argument
+    shift # past value
+    ;;
+    -p|--profile)
+    PROFILE="$2" # cross account id
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
 
 # Get bucket name
 if [ -z "$S3_BUCKET" ]; then
     S3_BUCKET="codepipeline-$(aws configure get region)-$(uuidgen | cut -d '-' -f 5)"
 fi
 
+# Set bucket type
+if [ -z "$DEPLOY_TYPE" ]; then
+    DEPLOY_TYPE=1
+fi
+
+if [ 3 == "$DEPLOY_TYPE" ]; then
+    if [ -z "$PROFILE" ]; then
+        echo Cross account profile is required.
+        exit 9
+    else
+        # Get cross account id
+        ACCOUNT_ID="$(aws sts get-caller-identity --profile $PROFILE | jq -r '.Account')"
+        if [ -z "$ACCOUNT_ID" ]; then
+            echo "$PROFILE" is not available. check your cross account profile.
+            exit 9
+        fi
+    fi
+fi
+
 # Generate S3 Bucket
 if [ -z "$(aws s3 ls | grep $S3_BUCKET)" ]; then
     # create S3 bucket
-    S3_BUCKET="$(aws s3 mb "s3://$S3_BUCKET" | cut -d ' ' -f 2)"
+    aws s3 mb "s3://$S3_BUCKET"
     
-    # generate bucket policy
-    cat policies/S3BucketPolicy.json \
-    | sed "s/S3-BUCKET/$S3_BUCKET/g" \
-    > .config/"$S3_BUCKET".json
-    
+    if [ 1 == "$DEPLOY_TYPE" ]; then
+        # generate bucket policy
+        cat policies/S3BucketPolicy.json \
+        | sed "s/S3-BUCKET/$S3_BUCKET/g" \
+        > .config/"$S3_BUCKET".json
+    elif [ 3 == "$DEPLOY_TYPE" ]; then
+        cat policies/S3BucketPolicyforCrossAccount.json \
+        | sed "s/S3-BUCKET/$S3_BUCKET/g" \
+        | sed "s/ACCOUNT-ID/$ACCOUNT_ID/g" \
+        > .config/"$S3_BUCKET".json
+    else
+        echo 'Not support bucket type'
+        exit 9
+    fi
+
     # Set codepipeline policy to s3 Bucket
     aws s3api put-bucket-policy \
     --bucket $S3_BUCKET \

@@ -15,7 +15,7 @@ echo 'create EC2 instance profile...'
 ROLE_ARN="$(aws iam get-role --role-name $1 2> /dev/null)"
 if [ -z $ROLE_ARN ]; then
     # create ec2 role for codedeploy
-    aws iam create-role --role-name $1 --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForEC2.json
+    aws iam create-role --role-name $1 --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforEC2.json
 
     # attach policy to codedeploy role
     aws iam attach-role-policy --role-name $1 --policy-arn arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy 

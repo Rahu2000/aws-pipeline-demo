@@ -16,7 +16,7 @@ CODEPIPELINE_SERVICE_ROLE="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_
 
 if [ -z $CODEPIPELINE_SERVICE_ROLE ] ; then
     # create codepipeline service role
-    aws iam create-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForCodePipeline.json
+    aws iam create-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforCodePipeline.json
 
     # attach policy to codepipeline role
     aws iam attach-role-policy --policy-arn $CODEPIPELINE_POLICY_ARN --role-name $CODEPIPELINE_SERVICE_ROLE_NAME

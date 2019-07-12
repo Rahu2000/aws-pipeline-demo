@@ -15,7 +15,7 @@ CODEDEPLOY_ROLE="$(aws iam get-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME 2>
 #########################################
 if [ -z $CODEDEPLOY_ROLE ] ; then
     # create codedeploy service role
-    aws iam create-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForCodeDeploy.json
+    aws iam create-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforCodeDeploy.json
     sleep 1
 
     # attach policy to codedeploy role

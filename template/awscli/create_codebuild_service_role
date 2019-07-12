@@ -42,7 +42,7 @@ if [ -z $CODEBUILD_SERVICE_ROLE ]; then
     #> .config/$1-CloudWatchLogsPolicy.json
 
     # create codedeploy role for codedeploy
-    aws iam create-role --role-name $CODEBUILD_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyForCodeBuild.json
+    aws iam create-role --role-name $CODEBUILD_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforCodeBuild.json
     sleep 1
 
     # search exist base policy for codebuild

@@ -4,20 +4,12 @@ unset AWS_SECRET_ACCESS_KEY
 unset REGION
 DEFAULT_REGION='ap-northeast-2'
 
-echo 'Would you use registered aws credential? Y or N'
-read LINE
-if [ $LINE == 'Y' ] || [ $LINE == 'y' ]; then
-    ACCESS_KEY="$(aws configure get aws_access_key_id)"
-    SECRET_KEY="$(aws configure get aws_secret_access_key)"
-    if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then
-        unset AWS_ACCESS_KEY_ID
-        unset AWS_SECRET_ACCESS_KEY
-        exit 0
-    else
-        echo 'AWS Credentials are not set yet'
-    fi
+PROFILE_NAME=$1
+if [ -z "$PROFILE_NAME" ]; then
+    DEFAULT_PROFILE_NAME='deployer'
+    echo "$DEFAULT_PROFILE_NAME" will be set as profile name.
+    PROFILE_NAME=DEFAULT_PROFILE_NAME
 fi
-unset LINE
 
 # set AWS_ACCESS_KEY_ID
 while :
@@ -49,10 +41,10 @@ done
 unset LINE
 
 # AWS Configure
-aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
-aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
-aws configure set default.region "$DEFAULT_REGION"
-aws configure set default.output json
+aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID" --profile $PROFILE_NAME
+aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY" --profile $PROFILE_NAME
+aws configure set region "$DEFAULT_REGION" --profile $PROFILE_NAME
+aws configure set output json --profile $PROFILE_NAME
 
 # set REGION
 echo "Supported regions"
@@ -73,6 +65,6 @@ else
 fi
 
 # Set region
-aws configure set default.region "$REGION"
+aws configure set region "$REGION" --profile $PROFILE_NAME
 
 exit 0
