@@ -48,7 +48,7 @@ echo 'Codecommit creation started...'
 
 REPO_ARN="$(aws codecommit get-repository --repository-name $REPO_NAME 2> /dev/null | jq -r '.repositoryMetadata.Arn')"
 if [ -n "$REPO_ARN" ]; then
-    echo 'Repository $REPO_NAME is already exist.'
+    echo "Repository $REPO_NAME is already exist."
     exit 0
 fi
 

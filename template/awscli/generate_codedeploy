@@ -96,7 +96,7 @@ fi
 if [ "Server" == "$PLATFORM" ]; then
     DEPLOYMENT_GROUP_FLAG="$(aws deploy list-deployment-groups --application-name $APP_NAME | jq -c --arg deploymentGroup $DEPLOYMENT_NAME '.deploymentGroups[] | contains ($deploymentGroup)')"
     if [ "$DEPLOYMENT_GROUP_FLAG" == true ]; then
-        continue
+        echo "$DEPLOYMENT_NAME is already exist."
     else
         aws deploy create-deployment-group \
             --application-name $APP_NAME \
