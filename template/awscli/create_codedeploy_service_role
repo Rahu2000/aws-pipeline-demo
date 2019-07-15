@@ -1,25 +1,37 @@
 #!/bin/bash
-CODEDEPLOY_SERVICE_ROLE_NAME=$1
+CODEDEPLOY_SERVICE_ROLE_NAME="$1"
+PROFILE="$2"
 
 if [ -z $CODEDEPLOY_SERVICE_ROLE_NAME ]; then
     CODEDEPLOY_SERVICE_ROLE_NAME='AWSCodeDeployServiceRole'
 fi
 
+if [ -z $PROFILE ]; then
+    PROFILE='default'
+fi
+
 #########################################
 # Get IAM
 #########################################
-CODEDEPLOY_ROLE="$(aws iam get-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME 2> /dev/null | jq -r '.Role.RoleName')"
+CODEDEPLOY_ROLE="$(aws iam get-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME --profile $PROFILE 2> /dev/null | jq -r '.Role.RoleName')"
 
 #########################################
 # Create AWS CodeDeploy Service Role
 #########################################
 if [ -z $CODEDEPLOY_ROLE ] ; then
     # create codedeploy service role
-    aws iam create-role --role-name $CODEDEPLOY_SERVICE_ROLE_NAME --path /service-role/ --assume-role-policy-document file://policies/TrustPolicyforCodeDeploy.json
+    aws iam create-role \
+    --role-name $CODEDEPLOY_SERVICE_ROLE_NAME \
+    --profile $PROFILE \
+    --path /service-role/ \
+    --assume-role-policy-document file://policies/TrustPolicyforCodeDeploy.json
     sleep 1
 
     # attach policy to codedeploy role
-    aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole --role-name $CODEDEPLOY_SERVICE_ROLE_NAME
+    aws iam attach-role-policy \
+    --profile $PROFILE \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole \
+    --role-name $CODEDEPLOY_SERVICE_ROLE_NAME
     sleep 5
 fi
 

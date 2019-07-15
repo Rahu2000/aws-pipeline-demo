@@ -65,22 +65,19 @@ fi
 ##############################################
 # Get informations for Key generation
 ##############################################
-# Get Codepipeline service role ARN
-CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'-"$(aws configure get region)"-$PIPELINE_NAME
-CODEPIPELINE_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME 2> /dev/null | jq -r '.Role.Arn')"
-if [ -z $CODEPIPELINE_SERVICE_ROLE_ARN ]; then
-    echo $CODEPIPELINE_SERVICE_ROLE_NAME is not found. check pipeline service roles.
-    exit 9
-fi
-
-SERVICE_ROLE_ARNS=",\"$CODEPIPELINE_SERVICE_ROLE_ARN"\"
-# Replace SERVICE_ROLE_ARNS
-REPLACE_STR='\/'
-SERVICE_ROLE_ARNS="${SERVICE_ROLE_ARNS//\//$REPLACE_STR}"
+REGION="$(aws configure get region)"
 
 ##############################################
 # Create customer KMS key
 ##############################################
+# Check exist customer KMS key
+KMS_KEY_ID="$(aws kms list-aliases 2> /dev/null | jq -c --arg alias $KMS_KEY_ALIAS '.Aliases[] | select(.AliasName == $alias)' | jq -r '.TargetKeyId')"
+if [ -n $KMS_KEY_ID ]; then
+    echo '$KMS_KEY_ALIAS KMS key is already exist.'
+    exit 0
+fi
+
+
 KEY_ID="$(aws kms create-key --key-usage 'ENCRYPT_DECRYPT' --origin 'AWS_KMS' --description 'A Key for cross account pipeline' --tags "TagKey=Name,TagValue=$PIPELINE_NAME" "TagKey=TargetAccount,TagValue=$CROSS_ACCOUNT_ID" 2> /dev/null | jq -r '.KeyMetadata.KeyId')"
 echo keyId: $KEY_ID
 if [ -z $KEY_ID ]; then
@@ -88,35 +85,10 @@ if [ -z $KEY_ID ]; then
     exit 9
 fi
 ##############################################
-# Create customer KMS key
+# Create alias to KMS key
 ##############################################
 aws kms create-alias \
---alias-name alias/CrossAccountKeyfor-"$PIPELINE_NAME" \
+--alias-name alias/CrossAccountKeyfor-"$REGION"-"$PIPELINE_NAME" \
 --target-key-id $KEY_ID
-
-##############################################
-# Attach policy to customer KMS key 
-##############################################
-# generate a key policy file
-KEY_FILE=kms-key-"$(uuidgen)"
-cat policies/KMSKeyConsolePolicyforCrossAccount.json \
-    | sed "s/ADMIN-ACCOUNT-ID/$ADMIN_ACCOUNT_ID/g" \
-    | sed "s/ADMIN-USER-ID/$ADMIN_USER_ID/g" \
-    | sed "s/CROSS-ACCOUNT-ID/$CROSS_ACCOUNT_ID/g" \
-    | sed "s/,\"SERVICE-ROLE-ARNS\"/$SERVICE_ROLE_ARNS/g" \
-    | sed 's/"/\\"/g' \
-    > .config/"$KEY_FILE".json
-sed -i -E ':a;N;$!ba;s/\r{0,1}\n/\\n/g' .config/"$KEY_FILE".json
-cat <<EOF > .config/"$KEY_FILE".json
-{
-  "Policy": "$(cat .config/"$KEY_FILE".json)"
-}
-EOF
-
-# put the policy to the KMS key
-aws kms put-key-policy \
---key-id $KEY_ID \
---policy-name default \
---cli-input-json file://.config/"$KEY_FILE".json
 
 exit 0

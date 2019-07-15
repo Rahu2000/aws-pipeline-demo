@@ -1,0 +1,208 @@
+#!/bin/bash
+##############################################
+# Set value
+##############################################
+unset CODEPIPELINE_NAME
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    CODEPIPELINE_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -s|--s3-bucket)
+    S3_BUCKET="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -r|--repository-name)
+    REPO_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -b|--branch)
+    BRANCH="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -bp|--build-project-name)
+    BUILD_PROJECT_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -an|--application-name)
+    APP_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -dg|--deployment-group-name)
+    DEPLOY_GROUP_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    ;;
+    -c|--cross-account-profile)
+    CROSS_ACCOUNT_PROFILE="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+# Check mandatory field
+if [ -z $CODEPIPELINE_NAME ]; then
+    echo 'CodePipeline name is required'
+    exit 9
+fi
+
+# S3 bucket
+if [ -z $S3_BUCKET ]; then
+    echo 'S3 bucket is required'
+    exit 9
+fi
+
+# Repository name
+if [ -z $REPO_NAME ]; then
+    echo 'Repository name is required'
+    exit 9
+fi
+
+# build name
+if [ -z $BUILD_PROJECT_NAME ]; then
+    echo 'Build name is required'
+    exit 9
+fi
+
+# application name
+if [ -z $APP_NAME ]; then
+    echo 'Repository name is required'
+    exit 9
+fi
+
+# deployment group name
+if [ -z $DEPLOY_GROUP_NAME ]; then
+    echo 'Deployment group name is required'
+    exit 9
+fi
+
+# cross account profile
+if [ -z $CROSS_ACCOUNT_PROFILE ]; then
+    echo 'Cross account profile is required'
+    exit 9
+fi
+
+# Set default branch type
+if [ -z $BRANCH ]; then
+    BRANCH="master"
+fi
+
+
+REGION="$(aws configure get region)"
+# Get account id
+ADMIN_ACCOUNT_ARN="$(aws sts get-caller-identity | jq -r '.Arn')"
+ADMIN_ACCOUNT_ID="$(echo $ADMIN_ACCOUNT_ARN | cut -d ':' -f 5)"
+if [ -z $ADMIN_ACCOUNT_ID ]; then
+    echo The default aws account is not valid.
+    exit 9
+fi
+echo 'Codepipeline creation started...'
+REPLACE_STR='\/'
+
+##############################################
+# Create codepipeline service role
+##############################################
+# Get Codepipeline service role
+CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'-$REGION-$CODEPIPELINE_NAME
+./create_codepipeline_service_role_cross_account -n $CODEPIPELINE_SERVICE_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
+if [ 0 -ne $? ]; then
+    echo "Creating 'codepipeline service role' failed."
+    exit 9
+fi
+CODEPIPELINE_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME | jq -r '.Role.Arn')"
+CODEPIPELINE_SERVICE_ROLE_ARN="${CODEPIPELINE_SERVICE_ROLE_ARN//\//$REPLACE_STR}"
+
+##############################################
+# Get KMS key information
+##############################################
+KMS_KEY_ALIAS=alias/CrossAccountKeyfor-$REGION-$CODEPIPELINE_NAME
+# Put cross account policy to cutomer key
+./put_custom_key_policy_cross_account -n $KMS_KEY_ALIAS -rn $CODEPIPELINE_SERVICE_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
+if [ 0 -ne $? ]; then
+    echo "Put cutomer key policy failed."
+    exit 9
+fi
+
+KMS_KEY_ID="$(aws kms list-aliases 2> /dev/null | jq -c --arg alias $KMS_KEY_ALIAS '.Aliases[] | select(.AliasName == $alias)' | jq -r '.TargetKeyId')"
+if [ -z $KMS_KEY_ID ]; then
+    echo 'KMS key is not found.'
+    exit 9
+fi
+KMS_KEY="$(aws kms describe-key --key-id $KEY_ID 2> /dev/null)"
+KMS_KEY_ARN="$(echo $KMS_KEY | jq -r '.KeyMetadata.Arn')"
+KMS_KEY_ARN="${KMS_KEY_ARN//\//$REPLACE_STR}"
+
+##############################################
+# Create cross account role
+##############################################
+# Get Codepipeline service role
+CROSS_ACCOUNT_DEPLOY_ROLE_NAME='CodedeployServiceRoleforCrossAccount'-$ADMIN_ACCOUNT_ID
+./create_cross_account_role -n $CROSS_ACCOUNT_DEPLOY_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
+if [ 0 -ne $? ]; then
+    echo "Creating 'cross account role for codededeploy' failed."
+    exit 9
+fi
+
+# Get codedeploy service role for cross account
+CROSS_ACCOUNT_ROLE_ARN="$(aws iam get-role --role-name $CROSS_ACCOUNT_DEPLOY_ROLE_NAME --profile $CROSS_ACCOUNT_PROFILE | jq -r '.Role.Arn')"
+if [ -z $CROSS_ACCOUNT_ROLE_ARN ]; then
+    echo 'Cross account deploy service role is not found.'
+    exit 9
+fi
+CROSS_ACCOUNT_ROLE_ARN="${CROSS_ACCOUNT_ROLE_ARN//\//$REPLACE_STR}"
+
+##############################################
+# Create Codepipeline
+##############################################
+# Make a codePipeline configure file from a template
+CODEPIPELINE="$(aws codepipeline get-pipeline --name $CODEPIPELINE_NAME 2> /dev/null)"
+
+# create codePipeline
+if [ -z $CODEPIPELINE ]; then
+    CODEPIPELINE_CONFIG_FILE="$CODEPIPELINE_NAME"-configure-"$(date '+%Y%m%d%H%M%S')".json
+    cat stubs/default_codepipeline_configure_for_cross_account.json \
+    | sed "s/CODEPIPELINE_NAME/$CODEPIPELINE_NAME/g" \
+    | sed "s/CODEPIPELINE_SERVICE_ROLE_ARN/$CODEPIPELINE_SERVICE_ROLE_ARN/g" \
+    | sed "s/S3_BUCKET/$S3_BUCKET/g" \
+    | sed "s/KMS_KEY_ARN/$KMS_KEY_ARN/g" \
+    | sed "s/BRANCH/$BRANCH/g" \
+    | sed "s/REPO_NAME/$REPO_NAME/g" \
+    | sed "s/REGION/$REGION/g" \
+    | sed "s/BUILD_PROJECT_NAME/$BUILD_PROJECT_NAME/g" \
+    | sed "s/APP_NAME/$APP_NAME/g" \
+    | sed "s/DEPLOY_GROUP_NAME/$DEPLOY_GROUP_NAME/g" \
+    | sed "s/CROSS_ACCOUNT_ROLE_ARN/$CROSS_ACCOUNT_ROLE_ARN/g" \
+    > .config/$CODEPIPELINE_CONFIG_FILE
+
+    aws codepipeline create-pipeline --cli-input-json file://.config/$CODEPIPELINE_CONFIG_FILE
+    sleep 3
+fi
+
+##############################################
+# Create CloudWatch events
+##############################################
+./create_cloudwatch_event -n "$CODEPIPELINE_NAME" -r "$REPO_NAME" -b "$BRANCH" -t "CODECOMMIT"
+if [ 0 -ne $? ]; then
+    echo "Creating 'cloudwatch events role' failed."
+    exit 9
+fi
+
+exit 0

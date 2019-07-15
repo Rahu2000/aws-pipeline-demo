@@ -1,0 +1,88 @@
+#!/bin/bash
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    CODEPIPELINE_SERVICE_ROLE_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -pn|--pipeline-name)
+    PIPELINE_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -c|--cross-account-profile)
+    CROSS_ACCOUNT_PROFILE="$2" # cross account profile
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+if [[ (-z $CODEPIPELINE_SERVICE_ROLE_NAME) && ( -z $PIPELINE_NAME ) ]]; then
+    echo 'Codepipeline role name or codepipeline name is required.'
+    echo 'Usage:'
+    echo 'create_codepipeline_service_role_cross_account -c CROSS_ACCOUNT_PROFILE (-n CODEPIPELINE_SERVICE_ROLE_NAME | -pn PIPELINE_NAME)'
+    #exit 9
+fi
+
+if [ -z $CROSS_ACCOUNT_PROFILE ]; then
+    echo 'Cross account profile is required.'
+    echo 'Usage:'
+    echo 'create_codepipeline_service_role_cross_account -c CROSS_ACCOUNT_PROFILE (-n CODEPIPELINE_SERVICE_ROLE_NAME | -pn PIPELINE_NAME)'
+    exit 9
+fi
+
+REGION="$(aws configure get region)"
+if [ -z $CODEPIPELINE_SERVICE_ROLE_NAME ]; then
+    CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'-$REGION-$PIPELINE_NAME
+fi
+
+##############################################
+# Create default codepipeline service role
+##############################################
+./create_codepipeline_service_role $CODEPIPELINE_SERVICE_ROLE_NAME
+if [ 0 -ne $? ]; then
+    echo "Creating 'codepipeline service role' failed."
+    exit 9
+fi
+
+##############################################
+# Attach cross account policy to codepipeline service role
+##############################################
+# Get cross account id
+CROSS_ACCOUNT_ID="$(aws sts get-caller-identity --profile $CROSS_ACCOUNT_PROFILE | jq -r '.Account')"
+
+# Generate temporory policy file
+FILE_NAME=TrustPolicyforResourceRole-"$(date '+%Y%m%d%H%M%S')".json
+cat policies/TrustPolicyforResourceRole.json \
+    | sed "s/ACCOUNT-ID/$CROSS_ACCOUNT_ID/g" \
+    > .config/$FILE_NAME
+
+CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME="CrossAccountPolicyfor$CROSS_ACCOUNT_PROFILE"
+# search exist base policy for codebuild
+CROSS_ACCOUNT_PERMISSIONS_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c --arg policyname $CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME '.Policies[] | select(.PolicyName == $policyname)' | jq -r '.Arn')"
+    
+if [ -z $CROSS_ACCOUNT_PERMISSIONS_POLICY_ARN ]; then
+    echo 'create cross account policy....'
+    # create codedeploy base policy
+    CROSS_ACCOUNT_PERMISSIONS_POLICY_ARN="$(aws iam create-policy --policy-name $CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME --path /service-role/ --policy-document file://.config/$FILE_NAME | jq -r '.Policy.Arn')"
+    sleep 1
+fi
+
+# attach cache policy to codebuild role
+aws iam attach-role-policy \
+    --policy-arn $CROSS_ACCOUNT_PERMISSIONS_POLICY_ARN \
+    --role-name $CODEPIPELINE_SERVICE_ROLE_NAME
+sleep 3
+
+exit 0

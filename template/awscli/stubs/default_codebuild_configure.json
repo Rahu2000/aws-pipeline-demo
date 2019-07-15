@@ -25,7 +25,9 @@
   },
   "serviceRole": "SERVICE-ROLE",
   "timeoutInMinutes": 60,
+  "encryptionKey": "alias/S3-KMS-KEY-ALIAS",
   "queuedTimeoutInMinutes": 480,
+  "vpcConfig": "VPC-CONFIG",
   "logsConfig": {
     "cloudWatchLogs": {
       "status": "ENABLED"

@@ -79,7 +79,7 @@ CODEPIPELINE_ARN="${CODEPIPELINE_ARN//\//$REPLACE_STR}"
 # Create a CloudWatchEvent Role for the pipeline
 ##############################################
 CWE_CONFIG_FILE="CloudWatchEventPolicyforCodePipeline-$REGION-$CODEPIPELINE_NAME".json
-CWS_EVENT_ROLE_ARN="$(aws iam get-role --role-name $CWE_EVENT_ROLE_NAME 2> /dev/null | jq -c '.Role.Arn')"
+CWS_EVENT_ROLE_ARN="$(aws iam get-role --role-name $CWE_EVENT_ROLE_NAME 2> /dev/null | jq -r '.Role.Arn')"
 
 if [ -z $CWS_EVENT_ROLE_ARN ]; then
     # create cloudwatch role for codepipeline

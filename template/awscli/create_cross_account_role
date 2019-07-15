@@ -1,0 +1,80 @@
+#!/bin/bash
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+key="$1"
+case $key in
+    -n|--name)
+    CROSS_ACCOUNT_ROLE_NAME="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -c|--cross-account-profile)
+    CROSS_ACCOUNT_PROFILE="$2" # cross account profile
+    shift # past argument
+    shift # past value
+    ;;
+    *)    # unknown option
+    POSITIONAL+=("$1") # save it in an array for later
+    shift # past argument
+    ;;
+esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+if [ -z $CROSS_ACCOUNT_PROFILE ]; then
+    echo 'Cross account profile is required.'
+    echo 'Usage:'
+    echo 'create_cross_account_role -c CROSS_ACCOUNT_PROFILE [-n CROSS_ACCOUNT_ROLE_NAME]'
+    exit 9
+fi
+
+# Get account id
+ADMIN_ACCOUNT_ARN="$(aws sts get-caller-identity | jq -r '.Arn')"
+ADMIN_ACCOUNT_ID="$(echo $ADMIN_ACCOUNT_ARN | cut -d ':' -f 5)"
+if [ -z $ADMIN_ACCOUNT_ID ]; then
+    echo The default aws account is not valid.
+    exit 9
+fi
+
+if [ -z $CROSS_ACCOUNT_ROLE_NAME ]; then
+    CROSS_ACCOUNT_ROLE_NAME='CodedeployServiceRoleforCrossAccount'-$ADMIN_ACCOUNT_ID
+fi
+
+#########################################
+# Get IAM
+#########################################
+CODEDEPLOY_ROLE="$(aws iam get-role --role-name $CROSS_ACCOUNT_ROLE_NAME --profile $CROSS_ACCOUNT_PROFILE 2> /dev/null | jq -r '.Role.RoleName')"
+
+#########################################
+# Create AWS CodeDeploy Service Role
+#########################################
+if [ -z $CODEDEPLOY_ROLE ]; then
+    FILE_NAME=TrustPolicyforAccount-"$(date '+%Y%m%d%H%M%S')".json
+    cat policies/TrustPolicyforAccount.json \
+        | sed "s/ACCOUNT-ID/$ADMIN_ACCOUNT_ID/g" \
+        > .config/$FILE_NAME
+
+    # create codedeploy service role
+    aws iam create-role \
+    --profile $CROSS_ACCOUNT_PROFILE \
+    --role-name $CROSS_ACCOUNT_ROLE_NAME \
+    --assume-role-policy-document file://.config/$FILE_NAME
+    sleep 1
+
+    # attach policies to cross account role
+    aws iam attach-role-policy \
+    --profile $CROSS_ACCOUNT_PROFILE \
+    --policy-arn arn:aws:iam::aws:policy/AWSCodeDeployDeployerAccess \
+    --role-name $CROSS_ACCOUNT_ROLE_NAME
+    sleep 1
+    
+    aws iam attach-role-policy \
+    --profile $CROSS_ACCOUNT_PROFILE \
+    --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess \
+    --role-name $CROSS_ACCOUNT_ROLE_NAME
+    sleep 5
+fi
+
+exit 0

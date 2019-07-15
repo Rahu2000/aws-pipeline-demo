@@ -36,6 +36,26 @@ case $key in
     shift # past argument
     shift # past value
     ;;
+    -a|--s3-kms-key-alias)
+    S3_KMS_KEY_ALIAS="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -v|--vpc-id)
+    VPC_ID="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -sn|--subnet-id)
+    SUBNET_ID="$2"
+    shift # past argument
+    shift # past value
+    ;;
+    -sg|--security-group-id)
+    SG_ID="$2"
+    shift # past argument
+    shift # past value
+    ;;
     *)    # unknown option
     POSITIONAL+=("$1") # save it in an array for later
     shift # past argument
@@ -47,11 +67,33 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 # Check mandatory field
 if [ -z "$BUILD_NAME" ]; then
     echo 'Build name is required'
+    echo 'Usage:'
+    echo '  generate_codebuild' 
+    echo '      -n BUILD_NAME'
+    echo '      [-d BUILD_DESCRIPTION]'
+    echo '      -s S3_BUCKET'
+    echo '      [-t SOURCE_TYPE]'
+    echo '      [-b BUILDSPEC_FILE]'
+    echo '      [-a S3_KMS_KEY_ALIAS]'
+    echo '      [-v VPC_ID]'
+    echo '      [-sn SUBNET_ID]'
+    echo '      [-sg SG_ID]'
     exit 1
 fi
 
 if [ -z "$S3_BUCKET" ]; then
     echo 'S3 bucket name is required'
+    echo 'Usage:'
+    echo '  generate_codebuild' 
+    echo '      -n BUILD_NAME'
+    echo '      [-d BUILD_DESCRIPTION]'
+    echo '      -s S3_BUCKET'
+    echo '      [-t SOURCE_TYPE]'
+    echo '      [-b BUILDSPEC_FILE]'
+    echo '      [-a S3_KMS_KEY_ALIAS]'
+    echo '      [-v VPC_ID]'
+    echo '      [-sn SUBNET_ID]'
+    echo '      [-sg SG_ID]'
     exit 1
 fi
 
@@ -68,6 +110,10 @@ fi
 # Set default build spec
 if [ -z "$BUILDSPEC_FILE" ]; then
     BUILDSPEC_FILE='buildspec.yml'
+fi
+
+if [ -z "$S3_KMS_KEY_ALIAS" ]; then
+    S3_KMS_KEY_ALIAS='aws\/s3'
 fi
 
 # Validate source type
@@ -100,6 +146,12 @@ CODEBUILD_SERVICE_ROLE="CodeBuildServiceRole-$REGION-$BUILD_NAME"
 CODEBUILD_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEBUILD_SERVICE_ROLE 2> /dev/null | jq -r '.Role.Arn')"
 CODEBUILD_SERVICE_ROLE_ARN="${CODEBUILD_SERVICE_ROLE_ARN//\//$REPLACE_STR}"
 
+if [ -z "$VPC_ID" ]; then
+    VPC_CONFIG='{}'
+else
+    VPC_CONFIG='{"securityGroupIds": ["'$SG_ID'"],"subnets": ["'$SUBNET_ID'"],"vpcId": "'$VPC_ID'"}'
+fi
+
 ##############################################
 # create application deployment group
 ##############################################
@@ -112,6 +164,8 @@ if [ 'CODEPIPELINE' == "$SOURCE_TYPE" ]; then
     | sed "s/S3-CACHE-BUCKET/$S3_CACHE_BUCKET/g" \
     | sed "s/IMAGE/$BUILDER_IMAGE/g" \
     | sed "s/SERVICE-ROLE/$CODEBUILD_SERVICE_ROLE_ARN/g" \
+    | sed "s/S3-KMS-KEY-ALIAS/$S3_KMS_KEY_ALIAS/g" \
+    | sed "s/\"VPC-CONFIG\"/$VPC_CONFIG/g" \
     > .config/$CODEBUILD_CONFIGURE_FILE
 
     aws codebuild create-project --cli-input-json file://.config/$CODEBUILD_CONFIGURE_FILE

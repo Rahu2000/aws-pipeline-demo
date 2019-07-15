@@ -1,0 +1,99 @@
+{
+  "pipeline": {
+    "name": "CODEPIPELINE_NAME",
+    "roleArn": "CODEPIPELINE_SERVICE_ROLE_ARN",
+    "artifactStore": {
+      "type": "S3",
+      "location": "S3_BUCKET",
+      "encryptionKey": {
+        "id": "KMS_KEY_ARN",
+        "type": "KMS"
+      }
+    },
+    "stages": [
+      {
+        "name": "Source",
+        "actions": [
+          {
+            "name": "Source",
+            "actionTypeId": {
+              "category": "Source",
+              "owner": "AWS",
+              "provider": "CodeCommit",
+              "version": "1"
+            },
+            "runOrder": 1,
+            "configuration": {
+              "BranchName": "BRANCH",
+              "PollForSourceChanges": "false",
+              "RepositoryName": "REPO_NAME"
+            },
+            "outputArtifacts": [
+              {
+                "name": "SourceArtifact"
+              }
+            ],
+            "inputArtifacts": [],
+            "region": "REGION"
+          }
+        ]
+      },
+      {
+        "name": "Build",
+        "actions": [
+          {
+            "name": "Build",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "provider": "CodeBuild",
+              "version": "1"
+            },
+            "runOrder": 1,
+            "configuration": {
+              "ProjectName": "BUILD_PROJECT_NAME"
+            },
+            "outputArtifacts": [
+              {
+                "name": "BuildArtifact"
+              }
+            ],
+            "inputArtifacts": [
+              {
+                "name": "SourceArtifact"
+              }
+            ],
+            "region": "REGION"
+          }
+        ]
+      },
+      {
+        "name": "Deploy",
+        "actions": [
+          {
+            "name": "ExternalDeploy",
+            "actionTypeId": {
+              "category": "Deploy",
+              "owner": "AWS",
+              "provider": "CodeDeploy",
+              "version": "1"
+            },
+            "runOrder": 1,
+            "configuration": {
+              "ApplicationName": "APP_NAME",
+              "DeploymentGroupName": "DEPLOY_GROUP_NAME"
+            },
+            "outputArtifacts": [],
+            "inputArtifacts": [
+              {
+                "name": "BuildArtifact"
+              }
+            ],
+            "roleArn": "CROSS_ACCOUNT_ROLE_ARN"
+          }
+        ]
+      }
+    ],
+    "version": 1
+  }
+}

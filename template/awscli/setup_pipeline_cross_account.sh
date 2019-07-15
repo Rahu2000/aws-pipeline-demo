@@ -120,10 +120,19 @@ fi
 BUILD_DESCRIPTION="The builder of the $REPOSITORY_NAME by the AWS CodeBuild."
 
 # Set deploy information
-APP_NAME=$REPOSITORY_NAME
-if [ 'master' != "$REPOSITORY_BRANCH" ]; then
-    APP_NAME=$REPOSITORY_NAME-$REPOSITORY_BRANCH
+
+# Set project description
+echo 'Please enter a application name. If you do not enter a value, the repository name is the default.'
+read LINE
+APP_NAME="$(echo $LINE)"
+if [ -z "$APP_NAME" ]; then
+    APP_NAME=$REPOSITORY_NAME
 fi
+if [ 'master' != "$REPOSITORY_BRANCH" ]; then
+    APP_NAME=$APP_NAME-$REPOSITORY_BRANCH
+fi
+unset LINE
+
 DEPLOYMENT_GROUP=$APP_NAME-deploy-group
 DEPLOY_FLATFORM='Server'
 
@@ -133,21 +142,42 @@ if [ 'master' != "$REPOSITORY_BRANCH" ]; then
     PIPELINE_NAME=$REPOSITORY_NAME-$REPOSITORY_BRANCH-pipeline
 fi
 
-#####################################################
-# Create application resource
-#####################################################
-if [ 'Server' == "$DEPLOY_FLATFORM" ]; then
-    ./generate_ec2 -n $APP_NAME
-    if [ 0 -ne $? ]; then
-        echo 'EC2 failed to start'
-        exit 9
+# Set project description
+echo 'Please enter a vpc id and subnet id and security group id for the codebuild configuration.' 
+echo 'If you do not enter some of them, the default vpc is set by default.'
+echo 'See the following links for vpc conditions'
+echo 'https://docs.aws.amazon.com/codebuild/latest/userguide/vpc-support.html'
+echo 'Please enter a vpc id.' 
+read LINE
+VPC_ID="$(echo $LINE)"
+unset LINE
+if [ -n "$VPC_ID" ]; then
+    echo 'Please enter a subnet id.' 
+    read LINE
+    SUBNET_ID="$(echo $LINE)"
+    unset LINE
+    
+    if [ -n "$SUBNET_ID" ]; then
+        echo 'Please enter a security group id.' 
+        read LINE
+        SG_ID="$(echo $LINE)"
+        unset LINE
     fi
+
 fi
 
+if [[ (-z "$VPC_ID") || (-z "$SUBNET_ID") || (-z "$SG_ID") ]]; then
+    unset $VPC_ID
+    unset $SUBNET_ID
+    unset $SG_ID
+fi
 #####################################################
 # Generate Repository
 #####################################################
-./generate_codecommit -n "$REPOSITORY_NAME" -d "$REPOSITORY_DESCRIPTION" -t "$TARGET_URL"
+./generate_codecommit \
+    --name "$REPOSITORY_NAME" \
+    --description "$REPOSITORY_DESCRIPTION" \
+    --target-url "$TARGET_URL"
 if [ 0 -ne $? ]; then
     echo 'Repository creation failed'
     exit 9
@@ -166,9 +196,28 @@ if [ -z "$S3_BUCKET" ]; then
 fi
 
 #####################################################
+# Create KMS key for cross account
+#####################################################
+./create_custom_key_cross_account \
+    --name "$PIPELINE_NAME" \
+    --cross-account-profile "$PROFILE_NAME"
+if [ 0 -ne $? ]; then
+    echo 'Customer key creation failed'
+    exit 9
+fi
+
+#####################################################
 # Setup Builder Environment
 #####################################################
-./generate_codebuild -n "$BUILD_PROJECT_NAME" -d "$BUILD_DESCRIPTION" -s "$S3_BUCKET" -t "CODEPIPELINE"
+./generate_codebuild \
+    --name "$BUILD_PROJECT_NAME" \
+    --description "$BUILD_DESCRIPTION" \
+    --s3-bucket "$S3_BUCKET" \
+    --type "CODEPIPELINE" \
+    --s3-kms-key-alias "CrossAccountKeyfor-$REGION-$PIPELINE_NAME" \
+    --vpc-id "$VPC_ID" \
+    --subnet-id "$SUBNET_ID" \
+    --security-group-id "$SG_ID"
 if [ 0 -ne $? ]; then
     echo 'CodeBuild creation failed'
     exit 9
@@ -177,7 +226,11 @@ fi
 #####################################################
 # Setup Deploy Environment
 #####################################################
-./generate_codedeploy -n "$APP_NAME" -d "$DEPLOYMENT_GROUP" -p "$DEPLOY_FLATFORM"
+./generate_codedeploy_cross_account \
+    --name "$APP_NAME" \
+    --deployment-name "$DEPLOYMENT_GROUP" \
+    --platform "$DEPLOY_FLATFORM" \
+    --cross-account-profile "$PROFILE_NAME"
 if [ 0 -ne $? ]; then
     echo 'CodeDeploy creation failed'
     exit 9
@@ -186,7 +239,15 @@ fi
 #####################################################
 # Setup Pipeline
 #####################################################
-./generate_codepipeline -n "$PIPELINE_NAME" -s "$S3_BUCKET" -r "$REPOSITORY_NAME" -b "$REPOSITORY_BRANCH" -bp "$BUILD_PROJECT_NAME" -an "$APP_NAME" -dg "$DEPLOYMENT_GROUP"
+./generate_codepipeline_cross_account \
+    --name "$PIPELINE_NAME" \
+    --s3-bucket "$S3_BUCKET" \
+    --repository-name "$REPOSITORY_NAME" \
+    --branch "$REPOSITORY_BRANCH" \
+    --build-project-name "$BUILD_PROJECT_NAME" \
+    --application-name "$APP_NAME" \
+    --deployment-group-name "$DEPLOYMENT_GROUP" \
+    --cross-account-profile $PROFILE_NAME
 if [ 0 -ne $? ]; then
     echo 'CodePipeline creation failed'
     exit 9

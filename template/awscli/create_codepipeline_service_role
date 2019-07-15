@@ -1,5 +1,8 @@
 #!/bin/bash
-CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'
+CODEPIPELINE_SERVICE_ROLE_NAME="$1"
+if [ -z $CODEPIPELINE_SERVICE_ROLE_NAME ]; then
+    CODEPIPELINE_SERVICE_ROLE_NAME='AWSCodePipelineServiceRole'
+fi
 CODEPIPELINE_POLICY_NAME='AWSCodePipelineServicePolicy'
 
 #########################################
