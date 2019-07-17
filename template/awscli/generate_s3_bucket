@@ -3,7 +3,7 @@
 ##############################################
 # Set value
 ##############################################
-unset ACCOUNT_ID
+unset CROSS_ACCOUNT_ID
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -20,8 +20,8 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    -p|--profile)
-    PROFILE="$2" # cross account id
+    -c|--cross-account-profile)
+    CROSS_ACCOUNT_PROFILE="$2" # cross account id
     shift # past argument
     shift # past value
     ;;
@@ -44,14 +44,14 @@ if [ -z "$DEPLOY_TYPE" ]; then
 fi
 
 if [ 3 == "$DEPLOY_TYPE" ]; then
-    if [ -z "$PROFILE" ]; then
+    if [ -z "$CROSS_ACCOUNT_PROFILE" ]; then
         echo Cross account profile is required.
         exit 9
     else
         # Get cross account id
-        ACCOUNT_ID="$(aws sts get-caller-identity --profile $PROFILE | jq -r '.Account')"
-        if [ -z "$ACCOUNT_ID" ]; then
-            echo "$PROFILE" is not available. check your cross account profile.
+        CROSS_ACCOUNT_ID="$(aws sts get-caller-identity --profile $CROSS_ACCOUNT_PROFILE | jq -r '.Account')"
+        if [ -z "$CROSS_ACCOUNT_ID" ]; then
+            echo "$CROSS_ACCOUNT_PROFILE" is not available. check your cross account profile.
             exit 9
         fi
     fi
@@ -70,7 +70,7 @@ if [ -z "$(aws s3 ls | grep $S3_BUCKET)" ]; then
     elif [ 3 == "$DEPLOY_TYPE" ]; then
         cat policies/S3BucketPolicyforCrossAccount.json \
         | sed "s/S3-BUCKET/$S3_BUCKET/g" \
-        | sed "s/ACCOUNT-ID/$ACCOUNT_ID/g" \
+        | sed "s/ACCOUNT-ID/$CROSS_ACCOUNT_ID/g" \
         > .config/"$S3_BUCKET".json
     else
         echo 'Not support bucket type'

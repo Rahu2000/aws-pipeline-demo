@@ -188,7 +188,10 @@ fi
 #####################################################
 if [ -z "$S3_BUCKET" ]; then
     S3_BUCKET="codepipeline-$REGION-$(uuidgen | cut -d '-' -f 5)"
-    ./generate_s3_bucket $S3_BUCKET
+    ./generate_s3_bucket \
+        --name "$S3_BUCKET" \
+        --bucket_type "3" \
+        --cross-account-profile "$PROFILE_NAME"
     if [ 0 -ne $? ]; then
         echo 'S3 bucket creation failed'
         exit 9

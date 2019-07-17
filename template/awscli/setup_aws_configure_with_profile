@@ -6,9 +6,18 @@ DEFAULT_REGION='ap-northeast-2'
 
 PROFILE_NAME=$1
 if [ -z "$PROFILE_NAME" ]; then
-    DEFAULT_PROFILE_NAME='deployer'
-    echo "$DEFAULT_PROFILE_NAME" will be set as profile name.
-    PROFILE_NAME=DEFAULT_PROFILE_NAME
+    echo 'Profile name is required.'
+    exit 1
+fi
+
+ACCESS_KEY="$(aws configure get aws_access_key_id --profile $PROFILE_NAME)"
+SECRET_KEY="$(aws configure get aws_secret_access_key --profile $PROFILE_NAME)"
+if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+    exit 0
+else
+    echo 'AWS Credentials are not set yet'
 fi
 
 # set AWS_ACCESS_KEY_ID
