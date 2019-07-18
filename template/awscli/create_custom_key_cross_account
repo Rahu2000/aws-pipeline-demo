@@ -29,6 +29,7 @@ esac
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
+echo 'creation of a customer key is start...'
 ##############################################
 # Arguments validation
 ##############################################
@@ -70,17 +71,16 @@ REGION="$(aws configure get region)"
 ##############################################
 # Create customer KMS key
 ##############################################
+KMS_KEY_ALIAS=alias/CrossAccountKeyfor-"$REGION"-"$PIPELINE_NAME"
 # Check exist customer KMS key
 KMS_KEY_ID="$(aws kms list-aliases 2> /dev/null | jq -c --arg alias $KMS_KEY_ALIAS '.Aliases[] | select(.AliasName == $alias)' | jq -r '.TargetKeyId')"
-if [ -n $KMS_KEY_ID ]; then
-    echo '$KMS_KEY_ALIAS KMS key is already exist.'
+if [ -n "$KMS_KEY_ID" ]; then
+    echo "$KMS_KEY_ALIAS KMS key is already exist."
     exit 0
 fi
 
-
 KEY_ID="$(aws kms create-key --key-usage 'ENCRYPT_DECRYPT' --origin 'AWS_KMS' --description 'A Key for cross account pipeline' --tags "TagKey=Name,TagValue=$PIPELINE_NAME" "TagKey=TargetAccount,TagValue=$CROSS_ACCOUNT_ID" 2> /dev/null | jq -r '.KeyMetadata.KeyId')"
-echo keyId: $KEY_ID
-if [ -z $KEY_ID ]; then
+if [ -z "$KEY_ID" ]; then
     echo Key generation failed.
     exit 9
 fi

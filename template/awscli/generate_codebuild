@@ -153,8 +153,16 @@ else
 fi
 
 ##############################################
-# create application deployment group
+# Create a codebuild
 ##############################################
+# Search existing projects
+PROJECT="$(aws codebuild list-projects | jq -c --arg project $BUILD_NAME 'select(.projects | index($project))')"
+if [ -n "$PROJECT"]; then
+    echo "$BUILD_NAME is already exist."
+    exit 0
+fi
+
+# Create a codebuild
 CODEBUILD_CONFIGURE_FILE=Codebuild-$REGION-$BUILD_NAME-"$(date '+%Y%m%d%H%M%S')".json
 if [ 'CODEPIPELINE' == "$SOURCE_TYPE" ]; then
     cat stubs/default_codebuild_configure.json \

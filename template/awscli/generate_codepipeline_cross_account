@@ -44,7 +44,6 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    ;;
     -c|--cross-account-profile)
     CROSS_ACCOUNT_PROFILE="$2"
     shift # past argument
@@ -133,7 +132,7 @@ CODEPIPELINE_SERVICE_ROLE_ARN="${CODEPIPELINE_SERVICE_ROLE_ARN//\//$REPLACE_STR}
 ##############################################
 # Get KMS key information
 ##############################################
-KMS_KEY_ALIAS=alias/CrossAccountKeyfor-$REGION-$CODEPIPELINE_NAME
+KMS_KEY_ALIAS="alias/CrossAccountKeyfor-$REGION-$CODEPIPELINE_NAME"
 # Put cross account policy to cutomer key
 ./put_custom_key_policy_cross_account -n $KMS_KEY_ALIAS -rn $CODEPIPELINE_SERVICE_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
 if [ 0 -ne $? ]; then
@@ -146,7 +145,7 @@ if [ -z $KMS_KEY_ID ]; then
     echo 'KMS key is not found.'
     exit 9
 fi
-KMS_KEY="$(aws kms describe-key --key-id $KEY_ID 2> /dev/null)"
+KMS_KEY="$(aws kms describe-key --key-id $KMS_KEY_ID 2> /dev/null)"
 KMS_KEY_ARN="$(echo $KMS_KEY | jq -r '.KeyMetadata.Arn')"
 KMS_KEY_ARN="${KMS_KEY_ARN//\//$REPLACE_STR}"
 

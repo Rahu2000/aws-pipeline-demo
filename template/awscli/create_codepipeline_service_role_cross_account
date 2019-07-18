@@ -68,7 +68,7 @@ cat policies/TrustPolicyforResourceRole.json \
     | sed "s/ACCOUNT-ID/$CROSS_ACCOUNT_ID/g" \
     > .config/$FILE_NAME
 
-CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME="CrossAccountPolicyfor$CROSS_ACCOUNT_PROFILE"
+CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME="CrossAccountPolicyfor-$CROSS_ACCOUNT_PROFILE"
 # search exist base policy for codebuild
 CROSS_ACCOUNT_PERMISSIONS_POLICY_ARN="$(aws iam list-policies --scope Local 2> /dev/null | jq -c --arg policyname $CROSS_ACCOUNT_PERMISSIONS_POLICY_NAME '.Policies[] | select(.PolicyName == $policyname)' | jq -r '.Arn')"
     
