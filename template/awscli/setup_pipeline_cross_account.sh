@@ -217,7 +217,7 @@ fi
     --description "$BUILD_DESCRIPTION" \
     --s3-bucket "$S3_BUCKET" \
     --type "CODEPIPELINE" \
-    --s3-kms-key-alias "CrossAccountKeyfor-$REGION-$PIPELINE_NAME" \
+    --s3-kms-key-alias "CrossAccountKeyforCodePipeline-$REGION-$PIPELINE_NAME" \
     --vpc-id "$VPC_ID" \
     --subnet-id "$SUBNET_ID" \
     --security-group-id "$SG_ID"

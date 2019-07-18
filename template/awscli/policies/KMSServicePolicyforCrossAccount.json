@@ -11,7 +11,7 @@
         "kms:Decrypt"
       ],
       "Resource": [
-        "*"
+        "KMS-KEY-ARN"
       ]
     }
   ]

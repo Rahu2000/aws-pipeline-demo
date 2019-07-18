@@ -114,8 +114,6 @@ if [ -z $ADMIN_ACCOUNT_ID ]; then
     exit 9
 fi
 echo 'Codepipeline creation started...'
-REPLACE_STR='\/'
-
 ##############################################
 # Create codepipeline service role
 ##############################################
@@ -126,15 +124,14 @@ if [ 0 -ne $? ]; then
     echo "Creating 'codepipeline service role' failed."
     exit 9
 fi
-CODEPIPELINE_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME | jq -r '.Role.Arn')"
-CODEPIPELINE_SERVICE_ROLE_ARN="${CODEPIPELINE_SERVICE_ROLE_ARN//\//$REPLACE_STR}"
 
 ##############################################
 # Get KMS key information
 ##############################################
-KMS_KEY_ALIAS="alias/CrossAccountKeyfor-$REGION-$CODEPIPELINE_NAME"
+KMS_KEY_ALIAS="alias/CrossAccountKeyforCodePipeline-$REGION-$CODEPIPELINE_NAME"
+CODEBUILD_SERVICE_ROLE_NAME="CodeBuildServiceRole-$REGION-$BUILD_PROJECT_NAME"
 # Put cross account policy to cutomer key
-./put_custom_key_policy_cross_account -n $KMS_KEY_ALIAS -rn $CODEPIPELINE_SERVICE_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
+./put_custom_key_policy_cross_account -n $KMS_KEY_ALIAS -b $BUILD_SERVICE_ROLE_NAME -p $CODEPIPELINE_SERVICE_ROLE_NAME -c $CROSS_ACCOUNT_PROFILE
 if [ 0 -ne $? ]; then
     echo "Put cutomer key policy failed."
     exit 9
@@ -145,10 +142,6 @@ if [ -z $KMS_KEY_ID ]; then
     echo 'KMS key is not found.'
     exit 9
 fi
-KMS_KEY="$(aws kms describe-key --key-id $KMS_KEY_ID 2> /dev/null)"
-KMS_KEY_ARN="$(echo $KMS_KEY | jq -r '.KeyMetadata.Arn')"
-KMS_KEY_ARN="${KMS_KEY_ARN//\//$REPLACE_STR}"
-
 ##############################################
 # Create cross account role
 ##############################################
@@ -159,21 +152,19 @@ if [ 0 -ne $? ]; then
     echo "Creating 'cross account role for codededeploy' failed."
     exit 9
 fi
-
-# Get codedeploy service role for cross account
-CROSS_ACCOUNT_ROLE_ARN="$(aws iam get-role --role-name $CROSS_ACCOUNT_DEPLOY_ROLE_NAME --profile $CROSS_ACCOUNT_PROFILE | jq -r '.Role.Arn')"
-if [ -z $CROSS_ACCOUNT_ROLE_ARN ]; then
-    echo 'Cross account deploy service role is not found.'
-    exit 9
-fi
-CROSS_ACCOUNT_ROLE_ARN="${CROSS_ACCOUNT_ROLE_ARN//\//$REPLACE_STR}"
-
 ##############################################
 # Create Codepipeline
 ##############################################
+REPLACE_STR='\/'
+CODEPIPELINE_SERVICE_ROLE_ARN="$(aws iam get-role --role-name $CODEPIPELINE_SERVICE_ROLE_NAME | jq -r '.Role.Arn')"
+CODEPIPELINE_SERVICE_ROLE_ARN="${CODEPIPELINE_SERVICE_ROLE_ARN//\//$REPLACE_STR}"
+CROSS_ACCOUNT_ROLE_ARN="$(aws iam get-role --role-name $CROSS_ACCOUNT_DEPLOY_ROLE_NAME --profile $CROSS_ACCOUNT_PROFILE | jq -r '.Role.Arn')"
+CROSS_ACCOUNT_ROLE_ARN="${CROSS_ACCOUNT_ROLE_ARN//\//$REPLACE_STR}"
+KMS_KEY_ARN="$(aws kms describe-key --key-id $KMS_KEY_ID 2> /dev/null | jq -r '.KeyMetadata.Arn')"
+KMS_KEY_ARN="${KMS_KEY_ARN//\//$REPLACE_STR}"
+
 # Make a codePipeline configure file from a template
 CODEPIPELINE="$(aws codepipeline get-pipeline --name $CODEPIPELINE_NAME 2> /dev/null)"
-
 # create codePipeline
 if [ -z $CODEPIPELINE ]; then
     CODEPIPELINE_CONFIG_FILE="$CODEPIPELINE_NAME"-configure-"$(date '+%Y%m%d%H%M%S')".json

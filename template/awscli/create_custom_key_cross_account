@@ -71,7 +71,7 @@ REGION="$(aws configure get region)"
 ##############################################
 # Create customer KMS key
 ##############################################
-KMS_KEY_ALIAS=alias/CrossAccountKeyfor-"$REGION"-"$PIPELINE_NAME"
+KMS_KEY_ALIAS="alias/CrossAccountKeyforCodePipeline-$REGION-$PIPELINE_NAME"
 # Check exist customer KMS key
 KMS_KEY_ID="$(aws kms list-aliases 2> /dev/null | jq -c --arg alias $KMS_KEY_ALIAS '.Aliases[] | select(.AliasName == $alias)' | jq -r '.TargetKeyId')"
 if [ -n "$KMS_KEY_ID" ]; then
@@ -88,7 +88,7 @@ fi
 # Create alias to KMS key
 ##############################################
 aws kms create-alias \
---alias-name alias/CrossAccountKeyfor-"$REGION"-"$PIPELINE_NAME" \
+--alias-name "$KMS_KEY_ALIAS" \
 --target-key-id $KEY_ID
 
 exit 0

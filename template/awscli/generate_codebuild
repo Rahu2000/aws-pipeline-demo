@@ -157,26 +157,24 @@ fi
 ##############################################
 # Search existing projects
 PROJECT="$(aws codebuild list-projects | jq -c --arg project $BUILD_NAME 'select(.projects | index($project))')"
-if [ -n "$PROJECT"]; then
+if [ -z "$PROJECT"]; then
+    # Create a codebuild
+    CODEBUILD_CONFIGURE_FILE=Codebuild-$REGION-$BUILD_NAME-"$(date '+%Y%m%d%H%M%S')".json
+    if [ 'CODEPIPELINE' == "$SOURCE_TYPE" ]; then
+        cat stubs/default_codebuild_configure.json \
+        | sed "s/BUILD-NAME/$BUILD_NAME/g" \
+        | sed "s/BUILD-DESCRIPTION/$BUILD_DESCRIPTION/g" \
+        | sed "s/BUILDSPEC-FILE/$BUILDSPEC_FILE/g" \
+        | sed "s/S3-CACHE-BUCKET/$S3_CACHE_BUCKET/g" \
+        | sed "s/IMAGE/$BUILDER_IMAGE/g" \
+        | sed "s/SERVICE-ROLE/$CODEBUILD_SERVICE_ROLE_ARN/g" \
+        | sed "s/S3-KMS-KEY-ALIAS/$S3_KMS_KEY_ALIAS/g" \
+        | sed "s/\"VPC-CONFIG\"/$VPC_CONFIG/g" \
+        > .config/$CODEBUILD_CONFIGURE_FILE
+    
+        aws codebuild create-project --cli-input-json file://.config/$CODEBUILD_CONFIGURE_FILE
+    fi
+else 
     echo "$BUILD_NAME is already exist."
-    exit 0
 fi
-
-# Create a codebuild
-CODEBUILD_CONFIGURE_FILE=Codebuild-$REGION-$BUILD_NAME-"$(date '+%Y%m%d%H%M%S')".json
-if [ 'CODEPIPELINE' == "$SOURCE_TYPE" ]; then
-    cat stubs/default_codebuild_configure.json \
-    | sed "s/BUILD-NAME/$BUILD_NAME/g" \
-    | sed "s/BUILD-DESCRIPTION/$BUILD_DESCRIPTION/g" \
-    | sed "s/BUILDSPEC-FILE/$BUILDSPEC_FILE/g" \
-    | sed "s/S3-CACHE-BUCKET/$S3_CACHE_BUCKET/g" \
-    | sed "s/IMAGE/$BUILDER_IMAGE/g" \
-    | sed "s/SERVICE-ROLE/$CODEBUILD_SERVICE_ROLE_ARN/g" \
-    | sed "s/S3-KMS-KEY-ALIAS/$S3_KMS_KEY_ALIAS/g" \
-    | sed "s/\"VPC-CONFIG\"/$VPC_CONFIG/g" \
-    > .config/$CODEBUILD_CONFIGURE_FILE
-
-    aws codebuild create-project --cli-input-json file://.config/$CODEBUILD_CONFIGURE_FILE
-fi
-
 exit 0
