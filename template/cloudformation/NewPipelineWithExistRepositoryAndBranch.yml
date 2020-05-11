@@ -1,3 +1,5 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create new pipeline with existing repository and new branch in AWS
 Parameters:
   BranchName:
     Description: CodeCommit branch name

@@ -1,3 +1,5 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Environment creation sample template for pipeline on AWS
 Parameters:
   CodeDeployRoleName:
     Description: CodeDeploy service role name
