@@ -157,3 +157,13 @@ Resources:
       ManagedPolicyArns: 
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
     DependsOn: CloudFormationServiceRole
+Outputs:
+  CFRoleArn:
+    Description: Lambda service role arn
+    Value: !GetAtt CloudFormationServiceRole.Arn
+    Export:
+      Name: !Join
+      - ''
+      - - !Ref 'AWS::StackName'
+        - ':'
+        - 'CFRoleArn'
