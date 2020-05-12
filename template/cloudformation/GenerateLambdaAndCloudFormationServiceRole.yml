@@ -107,6 +107,22 @@ Resources:
                   - ':'
                   - !Ref 'AWS::AccountId'
                   - ':log-group:/aws/lambda/auto:*'
+            - Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:ReEncrypt*'
+              - 'kms:GenerateDataKey*'
+              - 'kms:CreateGrant'
+              - 'kms:DescribeKey'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:kms:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':alias/aws/lambda'
         - PolicyName: CloudFormationCreateStackPolicy
           PolicyDocument:
             Version: '2012-10-17'
@@ -158,8 +174,17 @@ Resources:
       - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
     DependsOn: CloudFormationServiceRole
 Outputs:
-  CFRoleArn:
+  LambdaRoleArn:
     Description: Lambda service role arn
+    Value: !GetAtt LambdaServiceRole.Arn
+    Export:
+      Name: !Join
+      - ''
+      - - !Ref 'AWS::StackName'
+        - ':'
+        - 'LambdaRoleArn'
+  CFRoleArn:
+    Description: CloudFormation service role arn
     Value: !GetAtt CloudFormationServiceRole.Arn
     Export:
       Name: !Join
