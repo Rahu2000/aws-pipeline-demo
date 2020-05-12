@@ -1,0 +1,159 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create new lambda service role for CloudFormation
+Parameters:
+  LambdaName:
+    Description: LambdaName
+    Type: String
+    Default: pipeline-auto-generation-lambda
+Resources:
+  CloudFormationServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join
+      - ''
+      - - 'CFServiceRole-'
+        - !Ref LambdaName
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: ['cloudformation.amazonaws.com']
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: CloudFormationBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - 'codebuild:*'
+              - 'codedeploy:*'
+              - 'codepipeline:*'
+              - 'events:*'
+              Effect: Allow
+              Resource: '*'
+            - Action:
+              - 'iam:CreatePolicy'
+              - 'iam:PassRole'
+              - 'iam:DetachRolePolicy'
+              - 'iam:UpdateRole*'
+              - 'iam:CreateRole*'
+              - 'iam:TagRole'
+              - 'iam:DeleteRole*'
+              - 'iam:DeletePolicy'
+              - 'iam:AttachRolePolicy'
+              - 'iam:PutRolePolicy'
+              - 'iam:GetRole*'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':role/*'
+              - !Join
+                - ''
+                - - 'arn:aws:iam::'
+                  - !Ref 'AWS::AccountId'
+                  - ':policy/*'
+            - Action:
+              - 's3:PutObject'
+              - 's3:ListBucket'
+              - 's3:GetObject'
+              - 's3:CreateBucket'
+              Effect: Allow
+              Resource: '*'
+  LambdaServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join
+      - ''
+      - - !Ref LambdaName
+        - '-Role'
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: ['sts:AssumeRole']
+          Effect: Allow
+          Principal:
+            Service: ['lambda.amazonaws.com']
+        Version: '2012-10-17'
+      Path: /
+      Policies:
+        - PolicyName: LambdaBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - 'logs:CreateLogGroup'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:logs:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':*'
+            - Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:logs:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':log-group:/aws/lambda/auto:*'
+        - PolicyName: CloudFormationCreateStackPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - 'cloudformation:CreateStack'
+              - 'cloudformation:DeleteStack'
+              - 'cloudformation:UpdateStack'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:cloudformation:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':stack/*/*'
+        - PolicyName: CodeCommitCreateBranchPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action:
+              - 'codecommit:CreateBranch'
+              - 'codecommit:GetCommit'
+              - 'codecommit:GetBranch'
+              - 'codecommit:GetRepository'
+              - 'codecommit:ListBranches'
+              - 'codecommit:ListRepositories'
+              Effect: Allow
+              Resource: 
+              - !Join
+                - ''
+                - - 'arn:aws:codecommit:'
+                  - !Ref 'AWS::Region'
+                  - ':'
+                  - !Ref 'AWS::AccountId'
+                  - ':*'
+        - PolicyName: CloudFormationAssumePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Action: 
+              - 'sts:AssumeRole'
+              - 'iam:PassRole'
+              Effect: Allow
+              Resource: 
+              - !GetAtt CloudFormationServiceRole.Arn
+      ManagedPolicyArns: 
+      - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+    DependsOn: CloudFormationServiceRole
