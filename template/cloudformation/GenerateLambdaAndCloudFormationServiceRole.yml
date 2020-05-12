@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Create new lambda service role for CloudFormation
+Description: Create new lambda and CloudFormation service role for codepipeline
 Parameters:
   LambdaName:
     Description: LambdaName
