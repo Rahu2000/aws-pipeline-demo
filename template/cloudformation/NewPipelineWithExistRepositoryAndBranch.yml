@@ -18,6 +18,26 @@ Parameters:
   CodePipelineArtifactStoreBucket:
     Description: S3 bucket name for codepipeline
     Type: String
+  InstanceProfile:
+    Description: EC2 Instance profile name
+    Type: String
+  KeyName:
+    Description: Keypair name
+    Type: String
+  SecurityGroupId:
+    Description: Serurity group id for instance
+    Type: String
+  SubnetId:
+    Description: Subnet id for instance
+    Type: String
+  ImageId:
+    Description: AMI id
+    Type: String
+    Default: ami-01288945bd24ed49a
+  InstanceType:
+    Description: Instance type
+    Type: String
+    Default: t2.micro
 Resources:
   AppBuild:
     Type: AWS::CodeBuild::Project
@@ -184,12 +204,12 @@ Resources:
       Ec2TagSet:
         Ec2TagSetList: 
         - Ec2TagGroup:
-          - Key: Key1
-            Value: key1
-            Type: KEY_AND_VALUE
-        - Ec2TagGroup:
-          - Key: Key2
-            Value: key2
+          - Key: Name
+            Value: !Join
+            - ''
+            - - !Ref RepositoryName
+              - '-'
+              - !Ref BranchName
             Type: KEY_AND_VALUE
     DependsOn: AppDeployApplication
   AppPipeline:
@@ -334,4 +354,32 @@ Resources:
             - AmazonCloudWatchEventRole
             - Arn
           Id: codepipeline-AppPipeline
-    DependsOn: AmazonCloudWatchEventRule
+    DependsOn: AmazonCloudWatchEventRole
+  EC2Instance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      IamInstanceProfile: !Ref InstanceProfile
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      Tags:
+        - Key: Name
+          Value: !Join
+          - ''
+          - - !Ref RepositoryName
+            - '-'
+            - !Ref BranchName
+      SecurityGroupIds:
+      - !Ref SecurityGroupId
+      SubnetId: !Ref SubnetId
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            sudo yum -y update
+            sudo yum -y install ruby
+            sudo yum -y install wget
+            cd /home/ec2-user
+            wget https://aws-codedeploy-ap-northeast-2.s3.ap-northeast-2.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto
