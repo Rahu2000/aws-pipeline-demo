@@ -12,6 +12,7 @@ Parameters:
 Resources:
   CodePipelineArtifactStoreBucket:
     Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
     Properties:
       BucketName: !Join
       - ''
@@ -63,6 +64,7 @@ Resources:
               'aws:SecureTransport': false
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
+    DeletionPolicy: Retain
     Properties:
       RoleName: !Ref CodeDeployRoleName
       AssumeRolePolicyDocument:
@@ -77,6 +79,7 @@ Resources:
       - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
   CodePipelineServiceRole:
     Type: 'AWS::IAM::Role'
+    DeletionPolicy: Retain
     Properties:
       RoleName: !Ref CodePipelineRoleName
       AssumeRolePolicyDocument:
