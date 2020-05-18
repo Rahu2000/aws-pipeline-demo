@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Create a new lambda function for automating CodePipeline creation
+Parameters:
+  LambdaName:
+    Description: Lambda function name
+    Type: String
+    Default: pipeline-auto-generation-lambda
+  LambdaRoleStack:
+    Description: Lambda role stack name
+    Type: String
+    Default: LambdaRole
+  S3Bucket:
+    Description: S3 bucket name
+    Type: String
+  S3Key:
+    Description: S3 key of lambda function file (must zipped)
+    Type: String
+    Default: new-pipeline-with-ec2.zip
+Resources:
+  LambdaFunction:
+    Type: "AWS::Lambda::Function"
+    Properties: 
+      FunctionName: !Ref LambdaName
+      Handler: "lambda_function.lambda_handler"
+      Role: 
+        Fn::ImportValue:
+          !Sub "${LambdaRoleStack}:LambdaRoleArn"
+      Code: 
+        S3Bucket: !Ref S3Bucket
+        S3Key: !Ref S3Key
+      Runtime: "python3.8"
+      Environment:
+        Variables: 
+          CLOUDFORMATION_SERVICE_ROLE_ARN:
+            Fn::ImportValue:
+              !Sub "${LambdaRoleStack}:CFRoleArn"
+      Timeout: 120
+      #TracingConfig: # Need AWS X-RAY permission
+      #  Mode: "Active"

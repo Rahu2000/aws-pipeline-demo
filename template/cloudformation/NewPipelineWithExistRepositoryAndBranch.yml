@@ -86,7 +86,7 @@ Resources:
           Principal:
             Service: [codebuild.amazonaws.com]
         Version: '2012-10-17'
-      Path: /
+      Path: /service-role/
       Policies:
         - PolicyName: CodeBuildBasePolicy
           PolicyDocument:
@@ -215,17 +215,18 @@ Resources:
   AppPipeline:
     Type: 'AWS::CodePipeline::Pipeline'
     Properties:
-      Name: codecommit-events-pipeline
+      Name: !Join
+      - ''
+      - - !Ref RepositoryName
+        - !Ref BranchName
+        - 'Pipeline'
       RoleArn: !Join
             - ''
             - - 'arn:aws:iam:'
               - ':'
               - !Ref 'AWS::AccountId'
               - ':'
-              - 'role'
-              - '/'
-              - 'service-role'
-              - '/'
+              - 'role/'
               - !Ref CodePipelineServiceRole
       Stages:
         - Name: Source

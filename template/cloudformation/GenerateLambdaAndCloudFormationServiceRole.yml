@@ -8,6 +8,7 @@ Parameters:
 Resources:
   CloudFormationServiceRole:
     Type: AWS::IAM::Role
+    DeletionPolicy: Retain
     Properties:
       RoleName: !Join
       - ''
@@ -31,6 +32,10 @@ Resources:
               - 'codedeploy:*'
               - 'codepipeline:*'
               - 'events:*'
+              - 'ec2:RunInstances'
+              - 'ec2:DescribeInstances'
+              - 'ec2:TerminateInstances'
+              - 'ec2:createTags'
               Effect: Allow
               Resource: '*'
             - Action:
@@ -66,6 +71,7 @@ Resources:
               Resource: '*'
   LambdaServiceRole:
     Type: AWS::IAM::Role
+    DeletionPolicy: Retain
     Properties:
       RoleName: !Join
       - ''
