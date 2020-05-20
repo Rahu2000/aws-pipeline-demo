@@ -56,7 +56,7 @@ aws cloudformation create-stack \
 
 **Create new pipeline by lambda**
 
-***Preparation***
+***Preparations***
 - Requires S3 bucket for pipeline
 - Requires CodeDeploy service role
 - Requires CodePipeline service role
