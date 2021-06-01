@@ -77,7 +77,7 @@ unset LINE
 # Set S3 bucket
 echo 'Would you want to create an S3 bucket for pipeline? Y or N'
 read LINE
-if [ 'Y' == "$LINE" ] | [ 'y' == "$LINE" ]; then
+if [ 'Y' == "$LINE" ] || [ 'y' == "$LINE" ]; then
     echo "New S3 bucket for pipeline will be created."
 else
     echo 'Enter an existing S3 location from your account in the same region and account as your pipeline.'

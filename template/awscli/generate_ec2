@@ -58,7 +58,7 @@ if [ -z $DEPLOY_GROUP_NAME ]; then
 fi
 
 if [ -z "$INSTANCE_TYPE" ]; then
-    INSTANCE_TYPE=t2.micro
+    INSTANCE_TYPE=t3.micro
 fi
 
 if [ -z "$INSTANCE_COUNT" ]; then
@@ -94,7 +94,7 @@ fi
 VPC_ID="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" | jq -r '.Vpcs | last(.[]).VpcId')"
 SUBNET_ID="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" | jq -r '.Subnets | sort_by(.AvailabilityZone) | last(.[]).SubnetId')"
 
-if [ -z $VPC_ID ] | [ -z $SUBNET_ID ]; then
+if [ -z $VPC_ID ] || [ -z $SUBNET_ID ]; then
     echo 'Default vpc is not exist'
     exit 8
 fi
