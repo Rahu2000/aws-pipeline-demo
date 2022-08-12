@@ -97,14 +97,14 @@ fi
 
 # Set build information
 BUILD_PROJECT_NAME=$REPOSITORY_NAME-build
-if [ 'master' != "$REPOSITORY_BRANCH" ]; then
+if [ 'main' != "$REPOSITORY_BRANCH" ]; then
     BUILD_PROJECT_NAME=$REPOSITORY_NAME-$REPOSITORY_BRANCH-build
 fi
 BUILD_DESCRIPTION="The builder of the $REPOSITORY_NAME by the AWS CodeBuild."
 
 # Set deploy information
 APP_NAME=$REPOSITORY_NAME
-if [ 'master' != "$REPOSITORY_BRANCH" ]; then
+if [ 'main' != "$REPOSITORY_BRANCH" ]; then
     APP_NAME=$REPOSITORY_NAME-$REPOSITORY_BRANCH
 fi
 DEPLOYMENT_GROUP=$APP_NAME-deploy-group
@@ -112,7 +112,7 @@ DEPLOY_FLATFORM='Server'
 
 # Set pipeline information
 PIPELINE_NAME=$REPOSITORY_NAME-pipeline
-if [ 'master' != "$REPOSITORY_BRANCH" ]; then
+if [ 'main' != "$REPOSITORY_BRANCH" ]; then
     PIPELINE_NAME=$REPOSITORY_NAME-$REPOSITORY_BRANCH-pipeline
 fi
 
