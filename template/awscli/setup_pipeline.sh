@@ -92,7 +92,7 @@ unset LINE
 
 # Set default branch
 if [ -z $REPOSITORY_BRANCH ]; then
-    REPOSITORY_BRANCH='master'
+    REPOSITORY_BRANCH='main'
 fi
 
 # Set build information
